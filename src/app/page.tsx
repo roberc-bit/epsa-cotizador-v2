@@ -1,4 +1,4 @@
-import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 import Header from '@/components/Header'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -13,7 +13,7 @@ const ICONS: Record<string, string> = {
 }
 
 export default async function HomePage() {
-  const supabase = await createServerSupabase()
+  const supabase = createAdminSupabase()
   const { data: familias } = await supabase
     .from('familias')
     .select('*')

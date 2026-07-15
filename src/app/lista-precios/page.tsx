@@ -1,20 +1,20 @@
 import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 import Header from '@/components/Header'
 import { fmtUSD } from '@/lib/utils'
 import PrintButton from '@/components/PrintButton'
 
 export default async function ListaPreciosPage() {
   const supabase = await createServerSupabase()
+  const admin = createAdminSupabase()
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: familias } = await supabase
-    .from('familias').select('id, nombre, slug').eq('activo', true).order('orden')
-
-  const { data: modelos } = await supabase
-    .from('modelos').select('*, familias(nombre)').eq('activo', true).order('codigo')
-
-  const { data: empresa } = await supabase.from('empresa').select('*').single()
+  const [{ data: familias }, { data: modelos }, { data: empresa }] = await Promise.all([
+    admin.from('familias').select('id, nombre, slug').eq('activo', true).order('orden'),
+    admin.from('modelos').select('*, familias(nombre)').eq('activo', true).order('codigo'),
+    admin.from('empresa').select('*').single(),
+  ])
 
   // Log actividad
   if (user) {

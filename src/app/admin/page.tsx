@@ -1,4 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 import { redirect } from 'next/navigation'
 import Header from '@/components/Header'
 import AdminPanel from '@/components/admin/AdminPanel'
@@ -8,7 +9,8 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: perfil } = await supabase
+  const admin = createAdminSupabase()
+  const { data: perfil } = await admin
     .from('perfiles').select('*').eq('id', user.id).single()
 
   if (perfil?.rol !== 'admin') {
@@ -32,12 +34,12 @@ export default async function AdminPage() {
     { data: actividad },
     { data: cotizaciones },
   ] = await Promise.all([
-    supabase.from('empresa').select('*').single(),
-    supabase.from('perfiles').select('*').order('created_at'),
-    supabase.from('modelos').select('*, familias(nombre)').order('codigo'),
-    supabase.from('familias').select('*').order('orden'),
-    supabase.from('actividad').select('*, perfiles(nombre,email)').order('created_at', { ascending: false }).limit(100),
-    supabase.from('cotizaciones').select('*, perfiles(nombre), modelos(codigo,nombre)').order('created_at', { ascending: false }).limit(50),
+    admin.from('empresa').select('*').single(),
+    admin.from('perfiles').select('*').order('created_at'),
+    admin.from('modelos').select('*, familias(nombre)').order('codigo'),
+    admin.from('familias').select('*').order('orden'),
+    admin.from('actividad').select('*, perfiles(nombre,email)').order('created_at', { ascending: false }).limit(100),
+    admin.from('cotizaciones').select('*, perfiles(nombre), modelos(codigo,nombre)').order('created_at', { ascending: false }).limit(50),
   ])
 
   return (
