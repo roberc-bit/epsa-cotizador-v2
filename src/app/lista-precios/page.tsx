@@ -1,6 +1,7 @@
 import { createServerSupabase } from '@/lib/supabase-server'
 import Header from '@/components/Header'
 import { fmtUSD } from '@/lib/utils'
+import PrintButton from '@/components/PrintButton'
 
 export default async function ListaPreciosPage() {
   const supabase = await createServerSupabase()
@@ -36,12 +37,7 @@ export default async function ListaPreciosPage() {
               Precios en USD FOB · Validez: {empresa?.validez ?? '—'} · TC referencial: ARS {empresa?.tipo_cambio?.toLocaleString('es-AR') ?? '—'} / USD
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            style={{ background: '#003087', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, fontSize: '.9rem', fontWeight: 600, cursor: 'pointer' }}
-          >
-            ⬇️ Descargar PDF
-          </button>
+          <PrintButton />
         </div>
 
         {(familias ?? []).map((f: any) => {

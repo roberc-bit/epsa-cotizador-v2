@@ -1,12 +1,25 @@
 'use client'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    async function checkRole() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: perfil } = await supabase
+        .from('perfiles').select('rol').eq('id', user.id).single()
+      setIsAdmin(perfil?.rol === 'admin')
+    }
+    checkRole()
+  }, [])
 
   async function handleLogout() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -46,7 +59,7 @@ export default function Header() {
       <nav style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
         {navBtn('/', 'Inicio')}
         {navBtn('/lista-precios', 'Lista de Precios')}
-        {navBtn('/admin', 'Administración')}
+        {isAdmin && navBtn('/admin', 'Administración')}
         <button onClick={handleLogout} style={{
           background: 'transparent', border: '1px solid rgba(255,255,255,.3)',
           color: '#fff', padding: '6px 14px', borderRadius: 20,
