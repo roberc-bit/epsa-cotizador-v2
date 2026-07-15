@@ -24,8 +24,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Rutas protegidas (todo excepto login)
-  const publicPaths = ['/login', '/api/fix-dropdowns']
-  if (!user && !publicPaths.some(p => pathname.startsWith(p))) {
+  if (!user && pathname !== '/login') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
