@@ -11,14 +11,10 @@ export default function Header() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    async function checkRole() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: perfil } = await supabase
-        .from('perfiles').select('rol').eq('id', user.id).single()
-      setIsAdmin(perfil?.rol === 'admin')
-    }
-    checkRole()
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(d => setIsAdmin(d.rol === 'admin'))
+      .catch(() => {})
   }, [])
 
   async function handleLogout() {
