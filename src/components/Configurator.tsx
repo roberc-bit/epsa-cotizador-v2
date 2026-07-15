@@ -70,9 +70,14 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
   const base = modelo.precio_lista
   const factor = modelo.factor ?? 1
 
-  // Deltas de configurables destildados
+  // Deltas de configurables:
+  // es_default=true && destildado → deducir (se quitó del estándar)
+  // es_default=false && tildado  → sumar   (se agregó como opción)
   const configDelta = configurables.reduce((acc, it) => {
-    if (!checkedConfig.has(it.id) && it.precio_lista > 0) acc -= it.precio_lista
+    if (it.es_default && !checkedConfig.has(it.id) && it.precio_lista > 0)
+      acc -= it.precio_lista
+    else if (!it.es_default && checkedConfig.has(it.id) && it.precio_lista > 0)
+      acc += it.precio_lista
     return acc
   }, 0)
 
@@ -98,8 +103,10 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
   // Modificaciones para el sidebar
   const mods: { label: string; delta: number }[] = []
   configurables.forEach(it => {
-    if (!checkedConfig.has(it.id) && it.precio_lista > 0)
+    if (it.es_default && !checkedConfig.has(it.id) && it.precio_lista > 0)
       mods.push({ label: it.descripcion, delta: -it.precio_lista })
+    else if (!it.es_default && checkedConfig.has(it.id) && it.precio_lista > 0)
+      mods.push({ label: it.descripcion, delta: it.precio_lista })
   })
   ddGroups.forEach(g => {
     const selId = ddSelected[g.label]
@@ -202,7 +209,11 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
                       <div style={S.itemCode}>{it.codigo}</div>
                     </div>
                     <div style={{ fontSize: '.78rem', color: '#6b7280' }}>
-                      {it.precio_lista > 0 ? `−${new Intl.NumberFormat('es-AR').format(it.precio_lista)} si se saca` : 'Incluido'}
+                      {it.precio_lista > 0
+                        ? it.es_default
+                          ? `−${new Intl.NumberFormat('es-AR').format(it.precio_lista)} si se saca`
+                          : `+USD ${new Intl.NumberFormat('es-AR').format(it.precio_lista)} si se agrega`
+                        : 'Incluido'}
                     </div>
                   </div>
                 ))}
