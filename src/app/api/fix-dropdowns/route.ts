@@ -4,36 +4,28 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   const db = createAdminSupabase()
 
-  // 1. Ver cuántos items tienen grupo_dropdown no vacío
-  const { data: preview } = await db
+  // Ver sample de items para entender la estructura actual
+  const { data } = await db
     .from('items')
-    .select('tipo, grupo_dropdown, es_default, descripcion, seccion')
-    .not('grupo_dropdown', 'is', null)
-    .neq('grupo_dropdown', '')
-    .order('grupo_dropdown')
-    .limit(30)
+    .select('tipo, es_default, grupo_dropdown, seccion, descripcion, codigo')
+    .order('seccion', { ascending: true })
+    .limit(50)
 
-  // 2. Contar por grupo
-  const { data: count } = await db
-    .from('items')
-    .select('grupo_dropdown', { count: 'exact' })
-    .not('grupo_dropdown', 'is', null)
-    .neq('grupo_dropdown', '')
+  // Contar por tipo
+  const { data: tipos } = await db.rpc('get_item_type_counts' as never).select('*') as { data: null }
 
-  return NextResponse.json({ preview, totalWithGroup: count?.length })
+  // Alternativa: agrupamos manualmente
+  const byTipo: Record<string, number> = {}
+  const bySec: Record<string, number> = {}
+  data?.forEach(i => {
+    byTipo[i.tipo || 'null'] = (byTipo[i.tipo || 'null'] || 0) + 1
+    bySec[(i.seccion || 'null') + '|' + i.es_default] = ((bySec[(i.seccion || 'null') + '|' + i.es_default]) || 0) + 1
+  })
+
+  return NextResponse.json({ sample: data?.slice(0, 10), byTipo, bySec, total: data?.length })
 }
 
 export async function POST() {
   const db = createAdminSupabase()
-
-  // Cambiar tipo a 'dropdown' para todos los items con grupo_dropdown no vacío
-  const { data, error } = await db
-    .from('items')
-    .update({ tipo: 'dropdown' })
-    .not('grupo_dropdown', 'is', null)
-    .neq('grupo_dropdown', '')
-    .select('id, descripcion, grupo_dropdown, es_default')
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ updated: data?.length, sample: data?.slice(0, 5) })
+  return NextResponse.json({ msg: 'POST ready' })
 }
