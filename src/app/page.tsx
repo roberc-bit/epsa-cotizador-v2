@@ -24,6 +24,10 @@ export default async function HomePage() {
 
   return (
     <>
+      <style>{`
+        .category-card { transition: transform .18s, box-shadow .18s; }
+        .category-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,48,135,.15); }
+      `}</style>
       <Header />
       <div style={{ background: 'linear-gradient(135deg, #003087 0%, #004db3 60%, #0066cc 100%)', color: '#fff', padding: '52px 28px 44px', textAlign: 'center' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: 8 }}>Configurador de Equipos Volvo CE</h1>
@@ -35,9 +39,7 @@ export default async function HomePage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 16 }}>
           {(familias as Familia[])?.map(f => (
             <Link key={f.id} href={`/${f.slug}`} style={{ textDecoration: 'none' }}>
-              <div style={{ background: '#fff', border: '1px solid #dde3f0', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'transform .18s, box-shadow .18s' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(0,48,135,.15)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ''; (e.currentTarget as HTMLDivElement).style.boxShadow = '' }}>
+              <div className="category-card" style={{ background: '#fff', border: '1px solid #dde3f0', borderRadius: 12, overflow: 'hidden', cursor: 'pointer' }}>
                 <div style={{ height: 120, background: f.imagen_url ? undefined : 'linear-gradient(135deg,#dde3f0,#c0ccee)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', position: 'relative' }}>
                   {f.imagen_url
                     ? <Image src={f.imagen_url} alt={f.nombre} fill style={{ objectFit: 'cover' }} />
