@@ -3,29 +3,20 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   const db = createAdminSupabase()
-
-  // Ver sample de items para entender la estructura actual
-  const { data } = await db
-    .from('items')
-    .select('tipo, es_default, grupo_dropdown, seccion, descripcion, codigo')
-    .order('seccion', { ascending: true })
-    .limit(50)
-
-  // Contar por tipo
-  const { data: tipos } = await db.rpc('get_item_type_counts' as never).select('*') as { data: null }
-
-  // Alternativa: agrupamos manualmente
-  const byTipo: Record<string, number> = {}
-  const bySec: Record<string, number> = {}
-  data?.forEach(i => {
-    byTipo[i.tipo || 'null'] = (byTipo[i.tipo || 'null'] || 0) + 1
-    bySec[(i.seccion || 'null') + '|' + i.es_default] = ((bySec[(i.seccion || 'null') + '|' + i.es_default]) || 0) + 1
-  })
-
-  return NextResponse.json({ sample: data?.slice(0, 10), byTipo, bySec, total: data?.length })
+  const { data: modelos } = await db.from('modelos').select('id, codigo, nombre')
+  const { count } = await db.from('items').select('id', { count: 'exact', head: true })
+  const { data: sample } = await db.from('items').select('tipo, grupo_dropdown').not('grupo_dropdown', 'is', null).neq('grupo_dropdown', '').limit(3)
+  return NextResponse.json({ modelos, total_items: count, sample_dropdown: sample })
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  const { modelo_id, items } = await req.json() as { modelo_id: string; items: Record<string,unknown>[] }
+  if (!modelo_id || !items?.length) return NextResponse.json({ error: 'missing' }, { status: 400 })
   const db = createAdminSupabase()
-  return NextResponse.json({ msg: 'POST ready' })
+  const { error: delErr } = await db.from('items').delete().eq('modelo_id', modelo_id)
+  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 })
+  const rows = items.map((it, idx) => ({ ...it, modelo_id, orden: idx }))
+  const { data, error } = await db.from('items').insert(rows).select('id')
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ inserted: data?.length })
 }
