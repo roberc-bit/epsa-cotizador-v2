@@ -47,7 +47,7 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
     () => new Set(configIncluidos.map(i => i.id))
   )
   const [ddSelected, setDdSelected] = useState<Record<string, string>>(
-    () => Object.fromEntries(ddGroups.map(g => [g.label, g.items.find(i => i.es_default)?.id ?? g.items[0]?.id ?? '']))
+    () => Object.fromEntries(ddGroups.map(g => [g.label, g.items.find(i => i.es_default)?.id ?? '']))
   )
   const [checkedAdd, setCheckedAdd] = useState<Set<string>>(new Set())
   const [descuento, setDescuento] = useState(0)
@@ -64,11 +64,12 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
     return acc
   }, 0)
 
-  // Dropdowns vs default
+  // Dropdowns: si hay item seleccionado, sumar su precio (son adiciones opcionales)
   const ddDelta = ddGroups.reduce((acc, g) => {
-    const sel = g.items.find(i => i.id === ddSelected[g.label])
-    const def = g.items.find(i => i.es_default) ?? g.items[0]
-    if (sel && def) acc += sel.precio_lista - def.precio_lista
+    const selId = ddSelected[g.label]
+    if (!selId) return acc
+    const sel = g.items.find(i => i.id === selId)
+    if (sel) acc += sel.precio_lista
     return acc
   }, 0)
 
@@ -89,12 +90,11 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
       mods.push({ label: it.descripcion, delta: -it.precio_lista })
   })
   ddGroups.forEach(g => {
-    const sel = g.items.find(i => i.id === ddSelected[g.label])
-    const def = g.items.find(i => i.es_default) ?? g.items[0]
-    if (sel && def && sel.id !== def.id) {
-      const d = sel.precio_lista - def.precio_lista
-      if (d !== 0) mods.push({ label: g.label + ': ' + sel.descripcion, delta: d })
-    }
+    const selId = ddSelected[g.label]
+    if (!selId) return
+    const sel = g.items.find(i => i.id === selId)
+    if (sel && sel.precio_lista > 0)
+      mods.push({ label: g.label + ': ' + sel.descripcion, delta: sel.precio_lista })
   })
   addableItems.forEach(it => {
     if (checkedAdd.has(it.id) && it.precio_lista > 0)
@@ -213,23 +213,23 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
                 {ddGroups.map(g => {
                   const selId = ddSelected[g.label]
                   const selItem = g.items.find(i => i.id === selId)
-                  const defItem = g.items.find(i => i.es_default) ?? g.items[0]
-                  const delta = selItem && defItem ? selItem.precio_lista - defItem.precio_lista : 0
+                  const defItem = g.items.find(i => i.es_default)
+                  const delta = selItem ? selItem.precio_lista : 0
                   return (
                     <div key={g.label} style={{ background: '#fff', border: '1px solid #dde3f0', borderRadius: 8, padding: '13px 16px' }}>
                       <div style={{ fontSize: '.75rem', fontWeight: 700, color: '#003087', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 8 }}>{g.label}</div>
                       <select value={selId} onChange={e => setDdSelected(prev => ({ ...prev, [g.label]: e.target.value }))}
                         style={{ width: '100%', padding: '8px 12px', border: '1px solid #dde3f0', borderRadius: 7, fontSize: '.87rem', background: '#f7f8fc', cursor: 'pointer' }}>
+                        <option value="">— No agregar —</option>
                         {g.items.map(it => {
-                          const dd = it.precio_lista - (defItem?.precio_lista ?? 0)
-                          const tag = dd === 0 ? ' (de serie)' : ` (${dd > 0 ? '+' : '−'}USD ${fmt(Math.abs(dd))})`
+                          const tag = it.precio_lista > 0 ? ` (+USD ${fmt(it.precio_lista)})` : ''
                           return <option key={it.id} value={it.id}>{it.descripcion}{tag}</option>
                         })}
                       </select>
                       {selItem && <div style={{ fontSize: '.7rem', color: '#9ca3af', marginTop: 5, fontFamily: 'monospace' }}>{selItem.codigo}</div>}
-                      {delta !== 0 && (
-                        <div style={{ fontSize: '.78rem', marginTop: 6, fontWeight: 600, color: delta > 0 ? '#2e7d32' : '#e5001a' }}>
-                          {delta > 0 ? '+' : '−'}USD {fmt(Math.abs(delta))} respecto al de serie
+                      {selItem && selItem.precio_lista > 0 && (
+                        <div style={{ fontSize: '.78rem', marginTop: 6, fontWeight: 600, color: '#2e7d32' }}>
+                          +USD {fmt(selItem.precio_lista)} agregado al precio
                         </div>
                       )}
                     </div>
