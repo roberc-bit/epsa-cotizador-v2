@@ -1,4 +1,4 @@
-import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import Header from '@/components/Header'
 import Link from 'next/link'
@@ -7,7 +7,7 @@ import { fmtUSD } from '@/lib/utils'
 
 export default async function FamilyPage({ params }: { params: Promise<{ family: string }> }) {
   const { family } = await params
-  const supabase = await createServerSupabase()
+  const supabase = createAdminSupabase()
 
   const { data: familia } = await supabase
     .from('familias').select('*').eq('slug', family).single()

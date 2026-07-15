@@ -1,4 +1,4 @@
-import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import Header from '@/components/Header'
 import Configurator from '@/components/Configurator'
@@ -6,7 +6,7 @@ import type { Item } from '@/lib/types'
 
 export default async function ModelPage({ params }: { params: Promise<{ family: string; model: string }> }) {
   const { family, model: modelCode } = await params
-  const supabase = await createServerSupabase()
+  const supabase = createAdminSupabase()
 
   const { data: familia } = await supabase
     .from('familias').select('*').eq('slug', family).single()
