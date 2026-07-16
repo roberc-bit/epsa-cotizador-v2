@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 
+// Returns logo URL from Storage (no DB column needed)
+// Checks 'logos' bucket for logo.png / logo.svg / logo.jpg / logo.webp
 export async function GET() {
   const supabase = createAdminSupabase()
-  const { data } = await supabase.from('empresa').select('logo_url').eq('id', 1).single()
-  return NextResponse.json({ logo_url: (data as any)?.logo_url ?? null })
+
+  const extensions = ['svg', 'png', 'jpg', 'jpeg', 'webp']
+  let logo_url: string | null = null
+
+  for (const ext of extensions) {
+    const { data } = supabase.storage.from('logos').getPublicUrl(`logo.${ext}`)
+    // Check if file actually exists
+    const res = await fetch(data.publicUrl, { method: 'HEAD' }).catch(() => null)
+    if (res?.ok) {
+      logo_url = data.publicUrl
+      break
+    }
+  }
+
+  return NextResponse.json({ logo_url })
 }
