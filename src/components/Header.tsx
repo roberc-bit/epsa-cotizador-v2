@@ -19,9 +19,7 @@ export default function Header() {
   async function handleLogout() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      await supabase.from('actividad').insert({
-        usuario_id: user.id, tipo: 'logout', detalle: 'Cierre de sesión'
-      })
+      await supabase.from('actividad').insert({ usuario_id: user.id, tipo: 'logout', detalle: 'Cierre de sesión' })
     }
     await supabase.auth.signOut()
     router.push('/login')
@@ -35,7 +33,6 @@ export default function Header() {
       padding: '6px 16px', borderRadius: 20,
       textDecoration: 'none', fontSize: '.85rem',
       fontWeight: pathname === href ? 600 : 400,
-      transition: 'all .15s'
     }}>{label}</Link>
   )
 
@@ -47,14 +44,9 @@ export default function Header() {
       boxShadow: '0 2px 12px rgba(0,0,0,.25)',
       position: 'sticky', top: 0, zIndex: 100
     }}>
-      {/* Brand / Logo */}
-      <Link href="/" style={{ textDecoration: 'none', borderRight: '2px solid rgba(255,255,255,.25)', paddingRight: 18, lineHeight: 1.2, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+      <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
         {logoUrl ? (
-          <img
-            src={logoUrl}
-            alt="Escandinavia del Plata"
-            style={{ height: 42, maxWidth: 200, objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
-          />
+          <img src={logoUrl} alt="Logo" style={{ height: 42, maxWidth: 200, objectFit: 'contain' }} />
         ) : (
           <div>
             <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', display: 'block' }}>ESCANDINAVIA DEL PLATA</span>
@@ -62,11 +54,6 @@ export default function Header() {
           </div>
         )}
       </Link>
-
-      {/* Volvo wordmark */}
-      <span style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 900, letterSpacing: 3, opacity: .85, fontFamily: 'serif', flexShrink: 0 }}>
-        VOLVO
-      </span>
 
       <nav style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
         {navBtn('/', 'Inicio')}

@@ -105,12 +105,12 @@ export async function POST(req: NextRequest) {
       <table style="width:100%;border-collapse:collapse;margin-bottom:16px">${tableRows(optItems)}</table>` : ''}
 
       <div style="background:#003087;color:#fff;padding:16px 20px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-top:20px">
-        <span style="font-size:14px">${descuentoPct > 0 ? `TOTAL CON ${descuentoPct}% DESCUENTO` : 'TOTAL CONFIGURADO (USD FOB)'}</span>
+        <span style="font-size:14px">${descuentoPct > 0 ? `TOTAL CON ${descuentoPct}% DESCUENTO` : 'TOTAL CONFIGURADO'}</span>
         <span style="font-size:22px;font-weight:700">${fmt(precioFinal)}</span>
       </div>
 
       <p style="font-size:11px;color:#9ca3af;margin-top:20px;line-height:1.6">
-        Precios en USD FOB. No incluye flete, seguro ni derechos de importación. Validez sujeta a disponibilidad de stock. Cotización generada por Escandinavia del Plata S.A.
+        Precios en USD. No incluye flete, seguro ni derechos de importación. Validez sujeta a disponibilidad de stock. Cotización generada por Escandinavia del Plata S.A.
       </p>
     </div>
   </div>

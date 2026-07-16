@@ -42,7 +42,7 @@ export default async function FamilyPage({ params }: { params: Promise<{ family:
                   {m.descripcion && <div style={{ fontSize: '.82rem', color: '#6b7280' }}>{m.descripcion}</div>}
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #dde3f0' }}>
                     Precio Lista: <span style={{ fontWeight: 700, color: '#003087' }}>{fmtUSD(m.precio_lista)}</span>
-                    <em style={{ fontStyle: 'normal', fontSize: '.75rem', color: '#6b7280', marginLeft: 4 }}>(FOB)</em>
+                    
                   </div>
                 </div>
               </div>

@@ -34,7 +34,7 @@ export default async function ListaPreciosPage() {
           <div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>Lista de Precios — Vigente</h2>
             <p style={{ color: '#6b7280', fontSize: '.85rem' }}>
-              Precios en USD FOB · Validez: {empresa?.validez ?? '—'} · TC referencial: ARS {empresa?.tipo_cambio?.toLocaleString('es-AR') ?? '—'} / USD
+              Precios en USD · Validez: {empresa?.validez ?? '—'} · TC referencial: ARS {empresa?.tipo_cambio?.toLocaleString('es-AR') ?? '—'} / USD
             </p>
           </div>
           <PrintButton />
@@ -51,7 +51,7 @@ export default async function ListaPreciosPage() {
                   <tr style={{ background: '#003087', color: '#fff' }}>
                     <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>Código</th>
                     <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>Modelo</th>
-                    <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>Precio FOB</th>
+                    <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>Precio Lista</th>
                     <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: .5 }}>Precio Lista</th>
                   </tr>
                 </thead>

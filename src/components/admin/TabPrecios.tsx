@@ -54,7 +54,7 @@ export default function TabPrecios({ modelos, familias }: { modelos: any[]; fami
     <>
       <Card>
         <H3>Actualizar Lista de Precios</H3>
-        <p style={{ fontSize: '.85rem', color: '#6b7280', marginBottom: 16 }}>Subí <strong>precio de lista.xlsx</strong> para actualizar los precios base de todos los modelos. Columnas: MODELO, DESCRIPCIÓN, PRECIO FOB, PRECIO LISTA.</p>
+        <p style={{ fontSize: '.85rem', color: '#6b7280', marginBottom: 16 }}>Subí <strong>precio de lista.xlsx</strong> para actualizar los precios base de todos los modelos. Columnas: CÓDIGO, DESCRIPCIÓN, PRECIO LISTA.</p>
         <UploadZone onClick={() => fileRef.current?.click()} icon="📊" title="Seleccionar precio de lista.xlsx" hint="Se procesarán automáticamente todos los modelos encontrados" />
         <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={uploadPrices} />
       </Card>

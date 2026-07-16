@@ -1,5 +1,4 @@
 'use client'
-
 import { useState, useMemo } from 'react'
 import type { Item, Modelo, Familia, Empresa } from '@/lib/types'
 
@@ -11,44 +10,29 @@ interface ConfiguratorProps {
   userId: string
 }
 
-interface DropdownGroup {
-  label: string
-  items: Item[]
-  defaultItem: Item | null
-}
+interface DDGroup { label: string; items: Item[]; defaultItem: Item | null }
 
 function fmt(n: number) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
-}
-
-function DeltaBadge({ delta }: { delta: number }) {
-  if (delta === 0) return null
-  const pos = delta > 0
-  return (
-    <span className={`text-xs font-semibold ml-1 ${pos ? 'text-red-500' : 'text-green-600'}`}>
-      ({pos ? '+' : ''}{fmt(delta)})
-    </span>
-  )
+  return 'USD ' + Math.round(n).toLocaleString('es-AR')
 }
 
 export default function Configurator({ modelo, items, empresa, userId }: ConfiguratorProps) {
 
   // ── Classify ──────────────────────────────────────────────────────
-  const fijos = useMemo(() => items.filter(i => i.tipo === 'fijo').sort((a, b) => a.orden - b.orden), [items])
+  const fijos = useMemo(() =>
+    items.filter(i => i.tipo === 'fijo').sort((a, b) => a.orden - b.orden), [items])
 
   const ddGroupMap = useMemo(() => {
     const map = new Map<string, Item[]>()
     items.filter(i => i.tipo === 'dropdown').forEach(i => {
       const k = i.grupo_dropdown ?? 'Opción'
-      const arr = map.get(k) ?? []
-      arr.push(i)
-      map.set(k, arr)
+      const arr = map.get(k) ?? []; arr.push(i); map.set(k, arr)
     })
     map.forEach((arr, k) => map.set(k, arr.sort((a, b) => a.orden - b.orden)))
     return map
   }, [items])
 
-  const sec2Dropdowns = useMemo((): DropdownGroup[] =>
+  const sec2Dropdowns = useMemo((): DDGroup[] =>
     [...ddGroupMap.entries()]
       .filter(([, its]) => its.some(i => i.es_default))
       .map(([label, its]) => ({ label, items: its, defaultItem: its.find(i => i.es_default) ?? null })),
@@ -59,17 +43,15 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
     [ddGroupMap])
 
   const sec2Checks = useMemo(() =>
-    items.filter(i => i.tipo === 'configurable' && i.es_default).sort((a, b) => a.orden - b.orden),
-    [items])
+    items.filter(i => i.tipo === 'configurable' && i.es_default).sort((a, b) => a.orden - b.orden), [items])
 
   const sec3Checks = useMemo(() =>
-    items.filter(i => (i.tipo === 'configurable' || i.tipo === 'opcional') && !i.es_default).sort((a, b) => a.orden - b.orden),
-    [items])
+    items.filter(i => (i.tipo === 'configurable' || i.tipo === 'opcional') && !i.es_default).sort((a, b) => a.orden - b.orden), [items])
 
-  // ── UI State ──────────────────────────────────────────────────────
+  // ── State ─────────────────────────────────────────────────────────
   const [sec1Open, setSec1Open] = useState(false)
   const [sec2Open, setSec2Open] = useState(true)
-  const [sec3Open, setSec3Open] = useState(true)
+  const [sec3Open, setSec3Open] = useState(false)
 
   const initDdSel = useMemo(() => {
     const m: Record<string, string | null> = {}
@@ -94,9 +76,7 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
     return [...secs]
   }, [sec3Dropdowns, sec3Checks])
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
-  const toggleSection = (s: string) => setOpenSections(p => ({ ...p, [s]: !p[s] }))
 
-  // Quote form state
   const [descuentoPct, setDescuentoPct] = useState(0)
   const [clienteNombre, setClienteNombre] = useState('')
   const [clienteEmail, setClienteEmail] = useState('')
@@ -120,10 +100,8 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
     })
     let opcCheckDelta = 0
     sec3Checks.forEach(i => { if (checkSel[i.codigo]) opcCheckDelta += i.precio_lista })
-
     const t = base + cfgDdDelta + cfgCheckDelta + opcDdDelta + opcCheckDelta
-    const pf = descuentoPct > 0 ? t * (1 - descuentoPct / 100) : t
-    return { total: t, precioFinal: pf }
+    return { total: t, precioFinal: descuentoPct > 0 ? t * (1 - descuentoPct / 100) : t }
   }, [modelo.precio_lista, sec2Dropdowns, sec3Dropdowns, sec2Checks, sec3Checks, ddSel, checkSel, descuentoPct])
 
   // ── Sec3 grouping ──────────────────────────────────────────────────
@@ -133,164 +111,149 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
     sec3Dropdowns.forEach(([label, its]) => {
       const s = its[0]?.seccion ?? 'Otros'
       const e = map.get(s) ?? { dropdowns: [], checks: [] }
-      e.dropdowns.push([label, its])
-      map.set(s, e)
+      e.dropdowns.push([label, its]); map.set(s, e)
     })
     sec3Checks.forEach(i => {
       const s = i.seccion ?? 'Otros'
       const e = map.get(s) ?? { dropdowns: [], checks: [] }
-      e.checks.push(i)
-      map.set(s, e)
+      e.checks.push(i); map.set(s, e)
     })
     return map
   }, [allSec3Sections, sec3Dropdowns, sec3Checks])
 
-  // ── Quote send ─────────────────────────────────────────────────────
+  // ── Quote ──────────────────────────────────────────────────────────
   async function handleSendQuote() {
     if (!clienteNombre || !clienteEmail) return
-    setSending(true)
-    setQuoteResult(null)
+    setSending(true); setQuoteResult(null)
     try {
-      // Build items_json
       const itemsJson: any[] = []
       fijos.forEach(i => itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'fijo', precio_lista: i.precio_lista, incluido: true }))
       sec2Dropdowns.forEach(g => {
         const sel = g.items.find(i => i.codigo === ddSel[g.label]) ?? g.defaultItem
         if (sel) itemsJson.push({ codigo: sel.codigo, descripcion: sel.descripcion, tipo: 'dropdown', precio_lista: sel.precio_lista - (g.defaultItem?.precio_lista ?? 0), incluido: true })
       })
-      sec2Checks.forEach(i => {
-        itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'configurable', precio_lista: i.precio_lista, incluido: checkSel[i.codigo] ?? true })
-      })
+      sec2Checks.forEach(i => itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'configurable', precio_lista: i.precio_lista, incluido: checkSel[i.codigo] ?? true }))
       sec3Dropdowns.forEach(([label, its]) => {
         const sel = its.find(i => i.codigo === ddSel[label])
         if (sel) itemsJson.push({ codigo: sel.codigo, descripcion: sel.descripcion, tipo: 'dropdown', precio_lista: sel.precio_lista, incluido: false })
       })
-      sec3Checks.forEach(i => {
-        if (checkSel[i.codigo]) itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'opcional', precio_lista: i.precio_lista, incluido: false })
-      })
+      sec3Checks.forEach(i => { if (checkSel[i.codigo]) itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'opcional', precio_lista: i.precio_lista, incluido: false }) })
 
       const res = await fetch('/api/quote/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          emailCliente: clienteEmail,
-          nombreCliente: clienteNombre,
+          emailCliente: clienteEmail, nombreCliente: clienteNombre,
           emailVendedor: empresa?.email ?? null,
-          modeloNombre: modelo.nombre,
-          modeloCodigo: modelo.codigo,
-          itemsJson,
-          precioBase: modelo.precio_lista,
-          precioTotal: total,
-          descuentoPct,
-          precioFinal,
-          userId,
-          modeloId: modelo.id,
+          modeloNombre: modelo.nombre, modeloCodigo: modelo.codigo,
+          itemsJson, precioBase: modelo.precio_lista, precioTotal: total,
+          descuentoPct, precioFinal, userId, modeloId: modelo.id,
         }),
       })
       const data = await res.json()
-      if (data.success) {
-        setQuoteResult({ success: true, numero: data.numero })
-      } else {
-        setQuoteResult({ error: data.error ?? 'Error al enviar' })
-      }
+      setQuoteResult(data.success ? { success: true, numero: data.numero } : { error: data.error ?? 'Error al enviar' })
     } catch (e: any) {
       setQuoteResult({ error: e.message })
-    } finally {
-      setSending(false)
-    }
+    } finally { setSending(false) }
   }
 
-  // ── Render ─────────────────────────────────────────────────────────
-  const sec2ItemCount = sec2Dropdowns.length + sec2Checks.length
-  const sec3ItemCount = [...sec3BySec.values()].reduce((a, v) => a + v.dropdowns.length + v.checks.length, 0)
-
-  function SectionHeader({ title, count, open, onToggle }: { title: string; count?: number; open: boolean; onToggle: () => void }) {
-    return (
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 border-b border-gray-200 text-left transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <span className="font-semibold text-gray-800 text-sm uppercase tracking-wide">{title}</span>
-          {count !== undefined && (
-            <span className="text-xs bg-gray-200 text-gray-600 rounded-full px-2 py-0.5">{count} ítems</span>
-          )}
-        </div>
-        <span className="text-gray-400 text-sm">{open ? '▲' : '▼'}</span>
-      </button>
-    )
+  // ── Styles ─────────────────────────────────────────────────────────
+  const S = {
+    card: { background: '#fff', border: '1px solid #dde3f0', borderRadius: 10, overflow: 'hidden' as const, marginBottom: 12 },
+    sectionBtn: (open: boolean): React.CSSProperties => ({
+      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '12px 16px', background: open ? '#f0f4ff' : '#f4f6fa',
+      border: 'none', cursor: 'pointer', textAlign: 'left' as const,
+      borderBottom: open ? '1px solid #dde3f0' : 'none',
+    }),
+    label: { fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: .5, color: '#6b7280', display: 'block', marginBottom: 6 },
+    select: { width: '100%', padding: '8px 10px', border: '1px solid #dde3f0', borderRadius: 7, fontSize: '.88rem', background: '#fff', outline: 'none' },
+    input: { width: '100%', padding: '9px 12px', border: '1px solid #dde3f0', borderRadius: 7, fontSize: '.9rem', boxSizing: 'border-box' as const },
+    badge: (pos: boolean): React.CSSProperties => ({ fontSize: '.75rem', fontWeight: 700, color: pos ? '#dc2626' : '#16a34a', marginLeft: 6 }),
   }
+
+  const sec2Count = sec2Dropdowns.length + sec2Checks.length
+  const sec3Count = [...sec3BySec.values()].reduce((a, v) => a + v.dropdowns.length + v.checks.length, 0)
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-      {/* MODELO HEADER */}
-      <div className="flex items-center gap-4 mb-2">
+    <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 20px' }}>
+
+      {/* MODEL HEADER */}
+      <div style={{ marginBottom: 20, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         {modelo.imagen_url && (
-          <img src={modelo.imagen_url} alt={modelo.nombre} className="h-16 w-24 object-cover rounded-lg" />
+          <img src={modelo.imagen_url} alt={modelo.codigo} style={{ height: 80, width: 120, objectFit: 'cover', borderRadius: 8 }} />
         )}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{modelo.codigo}</h1>
-          <p className="text-gray-500 text-sm">{modelo.nombre}</p>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#1a1a2e', margin: 0 }}>{modelo.codigo}</h1>
+          <p style={{ color: '#6b7280', margin: '4px 0 0', fontSize: '.9rem' }}>{modelo.nombre}</p>
         </div>
       </div>
 
-      {/* PRICE DISPLAY */}
-      <div className="bg-[#003057] text-white rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+      {/* PRICE BOX */}
+      <div style={{ background: '#003087', color: '#fff', borderRadius: 12, padding: '18px 24px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <p className="text-xs text-blue-200 uppercase tracking-wider">Precio configurado</p>
-          <p className="text-3xl font-bold mt-0.5">{fmt(total)}</p>
+          <div style={{ fontSize: '.75rem', opacity: .7, textTransform: 'uppercase', letterSpacing: 1 }}>Precio configurado</div>
+          <div style={{ fontSize: '2rem', fontWeight: 700, marginTop: 2 }}>{fmt(total)}</div>
           {descuentoPct > 0 && (
-            <p className="text-sm text-green-300 mt-1">Con {descuentoPct}% descuento: <strong>{fmt(precioFinal)}</strong></p>
+            <div style={{ fontSize: '.9rem', color: '#86efac', marginTop: 4 }}>
+              Con {descuentoPct}% descuento: <strong>{fmt(precioFinal)}</strong>
+            </div>
           )}
         </div>
-        <div className="text-sm text-blue-200 text-right">
-          <p>Precio de lista base</p>
-          <p className="text-white font-semibold text-lg">{fmt(modelo.precio_lista)}</p>
+        <div style={{ textAlign: 'right', opacity: .8 }}>
+          <div style={{ fontSize: '.72rem', textTransform: 'uppercase', letterSpacing: 1 }}>Precio de lista base</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 600, marginTop: 2 }}>{fmt(modelo.precio_lista)}</div>
         </div>
       </div>
 
-      {/* SECTION 1 — DE SERIE NO CONFIGURABLE */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <SectionHeader
-          title="Equipamiento de serie no configurable"
-          count={fijos.length}
-          open={sec1Open}
-          onToggle={() => setSec1Open(p => !p)}
-        />
+      {/* SECTION 1 */}
+      <div style={S.card}>
+        <button style={S.sectionBtn(sec1Open)} onClick={() => setSec1Open(p => !p)}>
+          <span>
+            <span style={{ fontWeight: 700, fontSize: '.88rem', color: '#003087', textTransform: 'uppercase', letterSpacing: .5 }}>
+              Equipamiento de serie no configurable
+            </span>
+            <span style={{ marginLeft: 10, fontSize: '.78rem', color: '#9ca3af' }}>{fijos.length} ítems</span>
+          </span>
+          <span style={{ color: '#9ca3af', fontSize: '.8rem' }}>{sec1Open ? '▲' : '▼'}</span>
+        </button>
         {sec1Open && (
-          <ul className="divide-y divide-gray-100">
-            {fijos.map(item => (
-              <li key={item.codigo} className="px-4 py-2.5 flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                <span className="text-sm text-gray-700 flex-1">{item.descripcion}</span>
-                <span className="text-xs text-gray-400 font-mono">{item.codigo}</span>
-              </li>
+          <div>
+            {fijos.map((item, i) => (
+              <div key={item.codigo} style={{ padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: i < fijos.length - 1 ? '1px solid #f4f6fa' : 'none' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                <span style={{ fontSize: '.87rem', color: '#374151', flex: 1 }}>{item.descripcion}</span>
+                <span style={{ fontSize: '.72rem', color: '#d1d5db', fontFamily: 'monospace' }}>{item.codigo}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
 
-      {/* SECTION 2 — DE SERIE CONFIGURABLE */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <SectionHeader
-          title="Equipamiento de serie configurable"
-          count={sec2ItemCount}
-          open={sec2Open}
-          onToggle={() => setSec2Open(p => !p)}
-        />
+      {/* SECTION 2 */}
+      <div style={S.card}>
+        <button style={S.sectionBtn(sec2Open)} onClick={() => setSec2Open(p => !p)}>
+          <span>
+            <span style={{ fontWeight: 700, fontSize: '.88rem', color: '#003087', textTransform: 'uppercase', letterSpacing: .5 }}>
+              Equipamiento de serie configurable
+            </span>
+            <span style={{ marginLeft: 10, fontSize: '.78rem', color: '#9ca3af' }}>{sec2Count} ítems</span>
+          </span>
+          <span style={{ color: '#9ca3af', fontSize: '.8rem' }}>{sec2Open ? '▲' : '▼'}</span>
+        </button>
         {sec2Open && (
-          <div className="divide-y divide-gray-100">
-            {sec2Dropdowns.map(group => {
+          <div>
+            {/* Dropdowns */}
+            {sec2Dropdowns.map((group, i) => {
               const selCode = ddSel[group.label]
-              const selItem = group.items.find(i => i.codigo === selCode) ?? group.defaultItem
+              const selItem = group.items.find(it => it.codigo === selCode) ?? group.defaultItem
               const delta = selItem && group.defaultItem ? selItem.precio_lista - group.defaultItem.precio_lista : 0
               return (
-                <div key={group.label} className="px-4 py-3">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{group.label}</label>
+                <div key={group.label} style={{ padding: '12px 16px', borderBottom: '1px solid #f4f6fa' }}>
+                  <label style={S.label}>{group.label}</label>
                   <select
                     value={selCode ?? ''}
                     onChange={e => setDdSel(p => ({ ...p, [group.label]: e.target.value || null }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#003057]"
+                    style={S.select}
                   >
                     {group.items.map(it => {
                       const d = it.precio_lista - (group.defaultItem?.precio_lista ?? 0)
@@ -298,23 +261,26 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
                       return <option key={it.codigo} value={it.codigo}>{it.descripcion}{suffix}</option>
                     })}
                   </select>
-                  {delta !== 0 && <DeltaBadge delta={delta} />}
+                  {delta !== 0 && (
+                    <span style={S.badge(delta > 0)}>{delta > 0 ? '+' : ''}{fmt(delta)}</span>
+                  )}
                 </div>
               )
             })}
-            {sec2Checks.map(item => (
-              <label key={item.codigo} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50">
+            {/* Checkboxes */}
+            {sec2Checks.map((item, i) => (
+              <label key={item.codigo} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', cursor: 'pointer', borderBottom: i < sec2Checks.length - 1 ? '1px solid #f4f6fa' : 'none', background: checkSel[item.codigo] === false ? '#fef2f2' : 'transparent' }}>
                 <input
                   type="checkbox"
                   checked={checkSel[item.codigo] ?? true}
                   onChange={e => setCheckSel(p => ({ ...p, [item.codigo]: e.target.checked }))}
-                  className="w-4 h-4 accent-[#003057]"
+                  style={{ width: 16, height: 16, accentColor: '#003087', flexShrink: 0 }}
                 />
-                <span className={`text-sm flex-1 ${checkSel[item.codigo] === false ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                <span style={{ fontSize: '.87rem', color: checkSel[item.codigo] === false ? '#9ca3af' : '#374151', flex: 1, textDecoration: checkSel[item.codigo] === false ? 'line-through' : 'none' }}>
                   {item.descripcion}
                 </span>
                 {checkSel[item.codigo] === false && (
-                  <span className="text-xs text-green-600 font-semibold">{fmt(-item.precio_lista)}</span>
+                  <span style={{ fontSize: '.78rem', color: '#16a34a', fontWeight: 700 }}>{fmt(-item.precio_lista)}</span>
                 )}
               </label>
             ))}
@@ -322,37 +288,40 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
         )}
       </div>
 
-      {/* SECTION 3 — OPCIONALES */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <SectionHeader
-          title="Opcionales adicionales"
-          count={sec3ItemCount}
-          open={sec3Open}
-          onToggle={() => setSec3Open(p => !p)}
-        />
+      {/* SECTION 3 */}
+      <div style={S.card}>
+        <button style={S.sectionBtn(sec3Open)} onClick={() => setSec3Open(p => !p)}>
+          <span>
+            <span style={{ fontWeight: 700, fontSize: '.88rem', color: '#003087', textTransform: 'uppercase', letterSpacing: .5 }}>
+              Opcionales adicionales
+            </span>
+            <span style={{ marginLeft: 10, fontSize: '.78rem', color: '#9ca3af' }}>{sec3Count} ítems</span>
+          </span>
+          <span style={{ color: '#9ca3af', fontSize: '.8rem' }}>{sec3Open ? '▲' : '▼'}</span>
+        </button>
         {sec3Open && (
-          <div className="divide-y divide-gray-200">
+          <div>
             {allSec3Sections.map(sec => {
               const { dropdowns, checks } = sec3BySec.get(sec) ?? { dropdowns: [], checks: [] }
               const isOpen = openSections[sec] ?? false
               return (
-                <div key={sec}>
+                <div key={sec} style={{ borderBottom: '1px solid #f4f6fa' }}>
                   <button
-                    onClick={() => toggleSection(sec)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-left"
+                    onClick={() => setOpenSections(p => ({ ...p, [sec]: !p[sec] }))}
+                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#f9fafb', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                   >
-                    <span className="text-sm font-semibold text-gray-700">{sec}</span>
-                    <span className="text-gray-400 text-sm">{isOpen ? '▲' : '▼'}</span>
+                    <span style={{ fontSize: '.87rem', fontWeight: 600, color: '#374151' }}>{sec}</span>
+                    <span style={{ color: '#9ca3af', fontSize: '.75rem' }}>{isOpen ? '▲' : '▼'}</span>
                   </button>
                   {isOpen && (
-                    <div className="divide-y divide-gray-100">
+                    <div>
                       {dropdowns.map(([label, its]) => (
-                        <div key={label} className="px-4 py-3">
-                          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</label>
+                        <div key={label} style={{ padding: '12px 16px', borderTop: '1px solid #f4f6fa' }}>
+                          <label style={S.label}>{label}</label>
                           <select
                             value={ddSel[label] ?? ''}
                             onChange={e => setDdSel(p => ({ ...p, [label]: e.target.value || null }))}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#003057]"
+                            style={S.select}
                           >
                             <option value="">No agregar</option>
                             {its.map(it => (
@@ -363,16 +332,16 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
                           </select>
                         </div>
                       ))}
-                      {checks.map(item => (
-                        <label key={item.codigo} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50">
+                      {checks.map((item, i) => (
+                        <label key={item.codigo} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', cursor: 'pointer', borderTop: '1px solid #f4f6fa', background: checkSel[item.codigo] ? '#f0fdf4' : 'transparent' }}>
                           <input
                             type="checkbox"
                             checked={checkSel[item.codigo] ?? false}
                             onChange={e => setCheckSel(p => ({ ...p, [item.codigo]: e.target.checked }))}
-                            className="w-4 h-4 accent-[#003057]"
+                            style={{ width: 16, height: 16, accentColor: '#003087', flexShrink: 0 }}
                           />
-                          <span className="text-sm text-gray-700 flex-1">{item.descripcion}</span>
-                          <span className={`text-xs font-semibold ${checkSel[item.codigo] ? 'text-red-500' : 'text-gray-400'}`}>
+                          <span style={{ fontSize: '.87rem', color: '#374151', flex: 1 }}>{item.descripcion}</span>
+                          <span style={{ fontSize: '.78rem', fontWeight: 700, color: checkSel[item.codigo] ? '#dc2626' : '#d1d5db' }}>
                             {checkSel[item.codigo] ? '+' : ''}{fmt(item.precio_lista)}
                           </span>
                         </label>
@@ -387,61 +356,54 @@ export default function Configurator({ modelo, items, empresa, userId }: Configu
       </div>
 
       {/* QUOTE FORM */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <span className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Generar Cotización</span>
+      <div style={{ ...S.card, marginTop: 20 }}>
+        <div style={{ padding: '12px 16px', background: '#f4f6fa', borderBottom: '1px solid #dde3f0' }}>
+          <span style={{ fontWeight: 700, fontSize: '.88rem', color: '#003087', textTransform: 'uppercase', letterSpacing: .5 }}>
+            Generar Cotización
+          </span>
         </div>
-        <div className="p-4 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div style={{ padding: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Nombre del cliente</label>
-              <input
-                type="text"
-                value={clienteNombre}
-                onChange={e => setClienteNombre(e.target.value)}
-                placeholder="Empresa / Persona"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003057]"
-              />
+              <label style={S.label}>Nombre del cliente</label>
+              <input type="text" value={clienteNombre} onChange={e => setClienteNombre(e.target.value)}
+                placeholder="Empresa / Persona" style={S.input} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Email del cliente</label>
-              <input
-                type="email"
-                value={clienteEmail}
-                onChange={e => setClienteEmail(e.target.value)}
-                placeholder="cliente@empresa.com"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003057]"
-              />
+              <label style={S.label}>Email del cliente</label>
+              <input type="email" value={clienteEmail} onChange={e => setClienteEmail(e.target.value)}
+                placeholder="cliente@empresa.com" style={S.input} />
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">Descuento (%)</label>
-            <input
-              type="number"
-              min={0}
-              max={50}
-              value={descuentoPct}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <label style={{ ...S.label, margin: 0, whiteSpace: 'nowrap' }}>Descuento (%)</label>
+            <input type="number" min={0} max={50} value={descuentoPct}
               onChange={e => setDescuentoPct(Number(e.target.value))}
-              className="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003057]"
-            />
+              style={{ ...S.input, width: 90 }} />
             {descuentoPct > 0 && (
-              <span className="text-sm text-green-600 font-semibold">→ Total: {fmt(precioFinal)}</span>
+              <span style={{ fontSize: '.88rem', color: '#16a34a', fontWeight: 600 }}>
+                → Total con descuento: {fmt(precioFinal)}
+              </span>
             )}
           </div>
           <button
             onClick={handleSendQuote}
             disabled={sending || !clienteNombre || !clienteEmail}
-            className="w-full bg-[#003057] hover:bg-[#00224a] disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors"
+            style={{
+              width: '100%', background: (!clienteNombre || !clienteEmail) ? '#9ca3af' : '#003087',
+              color: '#fff', border: 'none', padding: '12px', borderRadius: 8,
+              fontWeight: 700, fontSize: '.95rem', cursor: (!clienteNombre || !clienteEmail) ? 'not-allowed' : 'pointer',
+            }}
           >
-            {sending ? 'Enviando...' : 'Enviar Cotización por Email'}
+            {sending ? 'Enviando…' : 'Enviar Cotización por Email'}
           </button>
           {quoteResult?.success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">
+            <div style={{ marginTop: 12, background: '#f0fdf4', border: '1px solid #86efac', color: '#15803d', borderRadius: 8, padding: '10px 14px', fontSize: '.88rem' }}>
               ✓ Cotización #{String(quoteResult.numero).padStart(5, '0')} enviada correctamente.
             </div>
           )}
           {quoteResult?.error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+            <div style={{ marginTop: 12, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 8, padding: '10px 14px', fontSize: '.88rem' }}>
               Error: {quoteResult.error}
             </div>
           )}
