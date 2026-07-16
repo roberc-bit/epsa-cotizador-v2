@@ -1,373 +1,452 @@
 'use client'
+
 import { useState, useMemo } from 'react'
-import Link from 'next/link'
 import type { Item, Modelo, Familia, Empresa } from '@/lib/types'
-import QuoteModal from './QuoteModal'
 
-interface Props { modelo: Modelo; items: Item[]; familia: Familia; empresa: Empresa; userId: string }
+interface ConfiguratorProps {
+  modelo: Modelo
+  items: Item[]
+  familia: Familia
+  empresa: Empresa | null
+  userId: string
+}
 
-const fmt = (n: number) => new Intl.NumberFormat('es-AR').format(Math.round(n))
+interface DropdownGroup {
+  label: string
+  items: Item[]
+  defaultItem: Item | null
+}
 
-export default function Configurator({ modelo, items, familia, empresa, userId }: Props) {
+function fmt(n: number) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+}
 
-  // ── Clasificar items ─────────────────────────────────────────────────────
-  const fijos             = useMemo(() => items.filter(i => i.tipo === 'fijo'), [items])
-  const configIncluidos   = useMemo(() => items.filter(i => i.tipo === 'configurable' && i.es_default), [items])
-  const configOpcionales  = useMemo(() => items.filter(i => i.tipo === 'configurable' && !i.es_default), [items])
-  const opcionales        = useMemo(() => items.filter(i => i.tipo === 'opcional'), [items])
-  const ddItems           = useMemo(() => items.filter(i => i.tipo === 'dropdown'), [items])
-
-  // Opcionales para sección: config no incluidos + tipo 'opcional'
-  const addableItems      = useMemo(() => [...configOpcionales, ...opcionales], [configOpcionales, opcionales])
-
-  // Agrupar por sección
-  const secciones = useMemo(() => {
-    const map = new Map<string, Item[]>()
-    addableItems.forEach(it => {
-      const s = (it.seccion && it.seccion.trim()) || 'OTROS'
-      if (!map.has(s)) map.set(s, [])
-      map.get(s)!.push(it)
-    })
-    return Array.from(map.entries())
-  }, [addableItems])
-
-  // Agrupar dropdowns
-  const ddGroups = useMemo(() => {
-    const map = new Map<string, Item[]>()
-    ddItems.forEach(it => {
-      const g = it.grupo_dropdown || 'Opción'
-      if (!map.has(g)) map.set(g, [])
-      map.get(g)!.push(it)
-    })
-    return Array.from(map.entries()).map(([label, its]) => ({ label, items: its }))
-  }, [ddItems])
-
-  // ── Estado ───────────────────────────────────────────────────────────────
-  const [checkedConfig, setCheckedConfig] = useState<Set<string>>(
-    () => new Set(configIncluidos.map(i => i.id))
+function DeltaBadge({ delta }: { delta: number }) {
+  if (delta === 0) return null
+  const pos = delta > 0
+  return (
+    <span className={`text-xs font-semibold ml-1 ${pos ? 'text-red-500' : 'text-green-600'}`}>
+      ({pos ? '+' : ''}{fmt(delta)})
+    </span>
   )
-  const [ddSelected, setDdSelected] = useState<Record<string, string>>(
-    () => Object.fromEntries(ddGroups.map(g => [g.label, g.items.find(i => i.es_default)?.id ?? '']))
-  )
-  const [checkedAdd, setCheckedAdd] = useState<Set<string>>(new Set())
-  const [descuento, setDescuento] = useState(0)
-  const [showModal, setShowModal] = useState(false)
-  const [showSerie, setShowSerie] = useState(false)
-  const [openSecs, setOpenSecs] = useState<Set<string>>(new Set())
+}
 
-  // ── Cálculo de precio ────────────────────────────────────────────────────
-  const base = modelo.precio_lista
+export default function Configurator({ modelo, items, empresa, userId }: ConfiguratorProps) {
 
-  // Items config default destildados → deducir
-  const configDelta = configIncluidos.reduce((acc, it) => {
-    if (!checkedConfig.has(it.id) && it.precio_lista > 0) acc -= it.precio_lista
-    return acc
-  }, 0)
+  // ── Classify ──────────────────────────────────────────────────────
+  const fijos = useMemo(() => items.filter(i => i.tipo === 'fijo').sort((a, b) => a.orden - b.orden), [items])
 
-  // Dropdowns: si hay item seleccionado, sumar su precio (son adiciones opcionales)
-  const ddDelta = ddGroups.reduce((acc, g) => {
-    const selId = ddSelected[g.label]
-    if (!selId) return acc
-    const sel = g.items.find(i => i.id === selId)
-    if (sel) acc += sel.precio_lista
-    return acc
-  }, 0)
+  const ddGroupMap = useMemo(() => {
+    const map = new Map<string, Item[]>()
+    items.filter(i => i.tipo === 'dropdown').forEach(i => {
+      const k = i.grupo_dropdown ?? 'Opción'
+      const arr = map.get(k) ?? []
+      arr.push(i)
+      map.set(k, arr)
+    })
+    map.forEach((arr, k) => map.set(k, arr.sort((a, b) => a.orden - b.orden)))
+    return map
+  }, [items])
 
-  // Opcionales agregados
-  const addDelta = addableItems.reduce((acc, it) => {
-    if (checkedAdd.has(it.id)) acc += it.precio_lista
-    return acc
-  }, 0)
+  const sec2Dropdowns = useMemo((): DropdownGroup[] =>
+    [...ddGroupMap.entries()]
+      .filter(([, its]) => its.some(i => i.es_default))
+      .map(([label, its]) => ({ label, items: its, defaultItem: its.find(i => i.es_default) ?? null })),
+    [ddGroupMap])
 
-  const totalConfig = base + configDelta + ddDelta + addDelta
-  const descAmt = totalConfig * (descuento / 100)
-  const total = totalConfig - descAmt
+  const sec3Dropdowns = useMemo(() =>
+    [...ddGroupMap.entries()].filter(([, its]) => !its.some(i => i.es_default)),
+    [ddGroupMap])
 
-  // ── Modificaciones para sidebar ──────────────────────────────────────────
-  const mods: { label: string; delta: number }[] = []
-  configIncluidos.forEach(it => {
-    if (!checkedConfig.has(it.id) && it.precio_lista > 0)
-      mods.push({ label: it.descripcion, delta: -it.precio_lista })
-  })
-  ddGroups.forEach(g => {
-    const selId = ddSelected[g.label]
-    if (!selId) return
-    const sel = g.items.find(i => i.id === selId)
-    if (sel && sel.precio_lista > 0)
-      mods.push({ label: g.label + ': ' + sel.descripcion, delta: sel.precio_lista })
-  })
-  addableItems.forEach(it => {
-    if (checkedAdd.has(it.id) && it.precio_lista > 0)
-      mods.push({ label: it.descripcion, delta: it.precio_lista })
-  })
+  const sec2Checks = useMemo(() =>
+    items.filter(i => i.tipo === 'configurable' && i.es_default).sort((a, b) => a.orden - b.orden),
+    [items])
 
-  const addedCount = addableItems.filter(i => checkedAdd.has(i.id)).length
+  const sec3Checks = useMemo(() =>
+    items.filter(i => (i.tipo === 'configurable' || i.tipo === 'opcional') && !i.es_default).sort((a, b) => a.orden - b.orden),
+    [items])
 
-  function toggleSec(s: string) {
-    setOpenSecs(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n })
+  // ── UI State ──────────────────────────────────────────────────────
+  const [sec1Open, setSec1Open] = useState(false)
+  const [sec2Open, setSec2Open] = useState(true)
+  const [sec3Open, setSec3Open] = useState(true)
+
+  const initDdSel = useMemo(() => {
+    const m: Record<string, string | null> = {}
+    sec2Dropdowns.forEach(g => { m[g.label] = g.defaultItem?.codigo ?? null })
+    sec3Dropdowns.forEach(([label]) => { m[label] = null })
+    return m
+  }, [sec2Dropdowns, sec3Dropdowns])
+  const [ddSel, setDdSel] = useState<Record<string, string | null>>(initDdSel)
+
+  const initCheckSel = useMemo(() => {
+    const m: Record<string, boolean> = {}
+    sec2Checks.forEach(i => { m[i.codigo] = true })
+    sec3Checks.forEach(i => { m[i.codigo] = false })
+    return m
+  }, [sec2Checks, sec3Checks])
+  const [checkSel, setCheckSel] = useState<Record<string, boolean>>(initCheckSel)
+
+  const allSec3Sections = useMemo(() => {
+    const secs = new Set<string>()
+    sec3Dropdowns.forEach(([, its]) => its.forEach(i => i.seccion && secs.add(i.seccion)))
+    sec3Checks.forEach(i => i.seccion && secs.add(i.seccion))
+    return [...secs]
+  }, [sec3Dropdowns, sec3Checks])
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  const toggleSection = (s: string) => setOpenSections(p => ({ ...p, [s]: !p[s] }))
+
+  // Quote form state
+  const [descuentoPct, setDescuentoPct] = useState(0)
+  const [clienteNombre, setClienteNombre] = useState('')
+  const [clienteEmail, setClienteEmail] = useState('')
+  const [sending, setSending] = useState(false)
+  const [quoteResult, setQuoteResult] = useState<{ success?: boolean; numero?: number; error?: string } | null>(null)
+
+  // ── Pricing ────────────────────────────────────────────────────────
+  const { total, precioFinal } = useMemo(() => {
+    const base = modelo.precio_lista
+    let cfgDdDelta = 0
+    sec2Dropdowns.forEach(g => {
+      const sel = g.items.find(i => i.codigo === ddSel[g.label])
+      if (sel && g.defaultItem) cfgDdDelta += sel.precio_lista - g.defaultItem.precio_lista
+    })
+    let cfgCheckDelta = 0
+    sec2Checks.forEach(i => { if (!checkSel[i.codigo]) cfgCheckDelta -= i.precio_lista })
+    let opcDdDelta = 0
+    sec3Dropdowns.forEach(([label, its]) => {
+      const sel = its.find(i => i.codigo === ddSel[label])
+      if (sel) opcDdDelta += sel.precio_lista
+    })
+    let opcCheckDelta = 0
+    sec3Checks.forEach(i => { if (checkSel[i.codigo]) opcCheckDelta += i.precio_lista })
+
+    const t = base + cfgDdDelta + cfgCheckDelta + opcDdDelta + opcCheckDelta
+    const pf = descuentoPct > 0 ? t * (1 - descuentoPct / 100) : t
+    return { total: t, precioFinal: pf }
+  }, [modelo.precio_lista, sec2Dropdowns, sec3Dropdowns, sec2Checks, sec3Checks, ddSel, checkSel, descuentoPct])
+
+  // ── Sec3 grouping ──────────────────────────────────────────────────
+  const sec3BySec = useMemo(() => {
+    const map = new Map<string, { dropdowns: [string, Item[]][]; checks: Item[] }>()
+    allSec3Sections.forEach(s => map.set(s, { dropdowns: [], checks: [] }))
+    sec3Dropdowns.forEach(([label, its]) => {
+      const s = its[0]?.seccion ?? 'Otros'
+      const e = map.get(s) ?? { dropdowns: [], checks: [] }
+      e.dropdowns.push([label, its])
+      map.set(s, e)
+    })
+    sec3Checks.forEach(i => {
+      const s = i.seccion ?? 'Otros'
+      const e = map.get(s) ?? { dropdowns: [], checks: [] }
+      e.checks.push(i)
+      map.set(s, e)
+    })
+    return map
+  }, [allSec3Sections, sec3Dropdowns, sec3Checks])
+
+  // ── Quote send ─────────────────────────────────────────────────────
+  async function handleSendQuote() {
+    if (!clienteNombre || !clienteEmail) return
+    setSending(true)
+    setQuoteResult(null)
+    try {
+      // Build items_json
+      const itemsJson: any[] = []
+      fijos.forEach(i => itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'fijo', precio_lista: i.precio_lista, incluido: true }))
+      sec2Dropdowns.forEach(g => {
+        const sel = g.items.find(i => i.codigo === ddSel[g.label]) ?? g.defaultItem
+        if (sel) itemsJson.push({ codigo: sel.codigo, descripcion: sel.descripcion, tipo: 'dropdown', precio_lista: sel.precio_lista - (g.defaultItem?.precio_lista ?? 0), incluido: true })
+      })
+      sec2Checks.forEach(i => {
+        itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'configurable', precio_lista: i.precio_lista, incluido: checkSel[i.codigo] ?? true })
+      })
+      sec3Dropdowns.forEach(([label, its]) => {
+        const sel = its.find(i => i.codigo === ddSel[label])
+        if (sel) itemsJson.push({ codigo: sel.codigo, descripcion: sel.descripcion, tipo: 'dropdown', precio_lista: sel.precio_lista, incluido: false })
+      })
+      sec3Checks.forEach(i => {
+        if (checkSel[i.codigo]) itemsJson.push({ codigo: i.codigo, descripcion: i.descripcion, tipo: 'opcional', precio_lista: i.precio_lista, incluido: false })
+      })
+
+      const res = await fetch('/api/quote/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailCliente: clienteEmail,
+          nombreCliente: clienteNombre,
+          emailVendedor: empresa?.email ?? null,
+          modeloNombre: modelo.nombre,
+          modeloCodigo: modelo.codigo,
+          itemsJson,
+          precioBase: modelo.precio_lista,
+          precioTotal: total,
+          descuentoPct,
+          precioFinal,
+          userId,
+          modeloId: modelo.id,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setQuoteResult({ success: true, numero: data.numero })
+      } else {
+        setQuoteResult({ error: data.error ?? 'Error al enviar' })
+      }
+    } catch (e: any) {
+      setQuoteResult({ error: e.message })
+    } finally {
+      setSending(false)
+    }
   }
 
-  // Snapshot para cotización
-  const itemsSnapshot = [
-    ...fijos.map(i => ({ codigo: i.codigo, descripcion: i.descripcion, tipo: i.tipo, precio_lista: i.precio_lista, incluido: true })),
-    ...configIncluidos.map(i => ({ codigo: i.codigo, descripcion: i.descripcion, tipo: i.tipo, precio_lista: i.precio_lista, incluido: checkedConfig.has(i.id) })),
-    ...addableItems.filter(i => checkedAdd.has(i.id)).map(i => ({ codigo: i.codigo, descripcion: i.descripcion, tipo: i.tipo, precio_lista: i.precio_lista, incluido: true })),
-  ]
+  // ── Render ─────────────────────────────────────────────────────────
+  const sec2ItemCount = sec2Dropdowns.length + sec2Checks.length
+  const sec3ItemCount = [...sec3BySec.values()].reduce((a, v) => a + v.dropdowns.length + v.checks.length, 0)
 
-  // ── Estilos ───────────────────────────────────────────────────────────────
-  const card: React.CSSProperties = { background: '#fff', border: '1px solid #dde3f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 12 }
-  const secHead: React.CSSProperties = { background: '#fff', borderBottom: '2px solid #003087', marginBottom: 14, paddingBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }
-  const secTitle: React.CSSProperties = { fontSize: '.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#003087' }
-  const badge: React.CSSProperties = { background: '#e8f0fb', color: '#003087', fontSize: '.68rem', fontWeight: 700, padding: '1px 8px', borderRadius: 20 }
-  const desc: React.CSSProperties = { fontSize: '.87rem', fontWeight: 500, lineHeight: 1.35 }
-  const code: React.CSSProperties = { fontSize: '.70rem', color: '#9ca3af', marginTop: 2, fontFamily: 'monospace' }
+  function SectionHeader({ title, count, open, onToggle }: { title: string; count?: number; open: boolean; onToggle: () => void }) {
+    return (
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 border-b border-gray-200 text-left transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-gray-800 text-sm uppercase tracking-wide">{title}</span>
+          {count !== undefined && (
+            <span className="text-xs bg-gray-200 text-gray-600 rounded-full px-2 py-0.5">{count} ítems</span>
+          )}
+        </div>
+        <span className="text-gray-400 text-sm">{open ? '▲' : '▼'}</span>
+      </button>
+    )
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 62px)', overflow: 'hidden' }}>
-
-      {/* Header */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #dde3f0', padding: '14px 28px', flexShrink: 0 }}>
-        <div style={{ fontSize: '.78rem', color: '#9ca3af', marginBottom: 4 }}>
-          <Link href="/" style={{ color: '#003087', textDecoration: 'none' }}>Inicio</Link>{' › '}
-          <Link href={`/${familia.slug}`} style={{ color: '#003087', textDecoration: 'none' }}>{familia.nombre}</Link>{' › '}
-          <span>{modelo.codigo}</span>
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      {/* MODELO HEADER */}
+      <div className="flex items-center gap-4 mb-2">
+        {modelo.imagen_url && (
+          <img src={modelo.imagen_url} alt={modelo.nombre} className="h-16 w-24 object-cover rounded-lg" />
+        )}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{modelo.codigo}</h1>
+          <p className="text-gray-500 text-sm">{modelo.nombre}</p>
         </div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>{modelo.nombre}</h2>
-        <p style={{ fontSize: '.82rem', color: '#6b7280', margin: '2px 0 0' }}>{familia.nombre}</p>
       </div>
 
-      {/* Body */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-
-        {/* Panel izquierdo */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 40px', minHeight: 0 }}>
-
-          {/* ── 1. DE SERIE ─────────────────────────────────────── */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={secHead}>
-              <span style={{ background: '#e8f5e9', color: '#2e7d32', width: 28, height: 28, borderRadius: 7, display: 'grid', placeItems: 'center', fontSize: '.85rem', flexShrink: 0 }}>✓</span>
-              <span style={secTitle}>Equipamiento de serie</span>
-              <span style={badge}>{fijos.length}</span>
-              <button onClick={() => setShowSerie(v => !v)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '.78rem' }}>
-                {showSerie ? 'ocultar ▲' : 'ver detalle ▼'}
-              </button>
-            </div>
-            {showSerie && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {fijos.map(it => (
-                  <div key={it.id} style={{ ...card, background: '#f0faf1', borderColor: '#b7e4bc' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={desc}>{it.descripcion}</div>
-                      <div style={code}>{it.codigo}</div>
-                    </div>
-                    <span style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', fontSize: '.62rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>de serie</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!showSerie && (
-              <div style={{ fontSize: '.82rem', color: '#6b7280', paddingLeft: 4 }}>
-                {fijos.slice(0, 4).map(i => i.descripcion).join(' · ')}{fijos.length > 4 ? ` · y ${fijos.length - 4} más` : ''}
-              </div>
-            )}
-          </div>
-
-          {/* ── 2. CONFIGURABLES INCLUIDOS ──────────────────────── */}
-          {configIncluidos.length > 0 && (
-            <div style={{ marginBottom: 28 }}>
-              <div style={secHead}>
-                <span style={{ background: '#e8f0fb', color: '#003087', width: 28, height: 28, borderRadius: 7, display: 'grid', placeItems: 'center', fontSize: '.85rem', flexShrink: 0 }}>⚙</span>
-                <span style={secTitle}>Configurables incluidos</span>
-                <span style={badge}>{configIncluidos.length}</span>
-                <span style={{ marginLeft: 'auto', fontSize: '.72rem', color: '#9ca3af' }}>Destildá para quitar del precio</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {configIncluidos.map(it => (
-                  <div key={it.id} style={card}>
-                    <input type="checkbox" checked={checkedConfig.has(it.id)}
-                      onChange={() => setCheckedConfig(prev => { const n = new Set(prev); n.has(it.id) ? n.delete(it.id) : n.add(it.id); return n })}
-                      style={{ marginTop: 3, accentColor: '#003087', width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
-                    />
-                    <div style={{ flex: 1, opacity: checkedConfig.has(it.id) ? 1 : 0.45 }}>
-                      <div style={desc}>{it.descripcion}</div>
-                      <div style={code}>{it.codigo}</div>
-                    </div>
-                    <div style={{ fontSize: '.75rem', color: checkedConfig.has(it.id) ? '#6b7280' : '#e5001a', whiteSpace: 'nowrap' }}>
-                      {it.precio_lista > 0 ? `−USD ${fmt(it.precio_lista)} si se saca` : 'incluido'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── 3. DROPDOWNS (tipo='dropdown') ──────────────────── */}
-          {ddGroups.length > 0 && (
-            <div style={{ marginBottom: 28 }}>
-              <div style={secHead}>
-                <span style={{ background: '#fff3e0', color: '#e65100', width: 28, height: 28, borderRadius: 7, display: 'grid', placeItems: 'center', fontSize: '.85rem', flexShrink: 0 }}>☰</span>
-                <span style={secTitle}>Opciones configurables</span>
-                <span style={badge}>{ddGroups.length}</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {ddGroups.map(g => {
-                  const selId = ddSelected[g.label]
-                  const selItem = g.items.find(i => i.id === selId)
-                  const defItem = g.items.find(i => i.es_default)
-                  const delta = selItem ? selItem.precio_lista : 0
-                  return (
-                    <div key={g.label} style={{ background: '#fff', border: '1px solid #dde3f0', borderRadius: 8, padding: '13px 16px' }}>
-                      <div style={{ fontSize: '.75rem', fontWeight: 700, color: '#003087', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 8 }}>{g.label}</div>
-                      <select value={selId} onChange={e => setDdSelected(prev => ({ ...prev, [g.label]: e.target.value }))}
-                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #dde3f0', borderRadius: 7, fontSize: '.87rem', background: '#f7f8fc', cursor: 'pointer' }}>
-                        <option value="">— No agregar —</option>
-                        {g.items.map(it => {
-                          const tag = it.precio_lista > 0 ? ` (+USD ${fmt(it.precio_lista)})` : ''
-                          return <option key={it.id} value={it.id}>{it.descripcion}{tag}</option>
-                        })}
-                      </select>
-                      {selItem && <div style={{ fontSize: '.7rem', color: '#9ca3af', marginTop: 5, fontFamily: 'monospace' }}>{selItem.codigo}</div>}
-                      {selItem && selItem.precio_lista > 0 && (
-                        <div style={{ fontSize: '.78rem', marginTop: 6, fontWeight: 600, color: '#2e7d32' }}>
-                          +USD {fmt(selItem.precio_lista)} agregado al precio
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── 4. OPCIONALES por sección ────────────────────────── */}
-          {secciones.length > 0 && (
-            <div style={{ marginBottom: 28 }}>
-              <div style={secHead}>
-                <span style={{ background: '#fce4ec', color: '#c62828', width: 28, height: 28, borderRadius: 7, display: 'grid', placeItems: 'center', fontSize: '.85rem', flexShrink: 0 }}>＋</span>
-                <span style={secTitle}>Opcionales</span>
-                <span style={badge}>{addableItems.length}</span>
-                <span style={{ marginLeft: 'auto', fontSize: '.72rem', color: '#9ca3af' }}>Tildá los que querés agregar</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {secciones.map(([sec, its]) => (
-                  <div key={sec} style={{ background: '#fff', border: '1px solid #dde3f0', borderRadius: 8, overflow: 'hidden' }}>
-                    <div onClick={() => toggleSec(sec)}
-                      style={{ padding: '11px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, background: '#fafbfe', userSelect: 'none' }}>
-                      <span style={{ fontSize: '.82rem', fontWeight: 700, flex: 1, textTransform: 'uppercase', letterSpacing: .3 }}>{sec}</span>
-                      <span style={{ fontSize: '.72rem', color: '#9ca3af' }}>{its.length} ítems</span>
-                      <span style={{ fontSize: '.7rem', color: '#9ca3af', transition: 'transform .18s', display: 'inline-block', transform: openSecs.has(sec) ? 'rotate(180deg)' : '' }}>▼</span>
-                    </div>
-                    {openSecs.has(sec) && (
-                      <div style={{ padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid #dde3f0' }}>
-                        {/* Sub-grupos dentro de la sección */}
-                        {Array.from(new Set(its.map(i => i.grupo_dropdown || ''))).map(grp => (
-                          <div key={grp}>
-                            {grp && <div style={{ fontSize: '.7rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: .5, margin: '8px 0 4px 2px' }}>{grp}</div>}
-                            {its.filter(i => (i.grupo_dropdown || '') === grp).map(it => (
-                              <div key={it.id} style={{ ...card, marginBottom: 4 }}>
-                                <input type="checkbox" checked={checkedAdd.has(it.id)}
-                                  onChange={() => setCheckedAdd(prev => { const n = new Set(prev); n.has(it.id) ? n.delete(it.id) : n.add(it.id); return n })}
-                                  style={{ marginTop: 3, accentColor: '#003087', width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
-                                />
-                                <div style={{ flex: 1 }}>
-                                  <div style={desc}>{it.descripcion}</div>
-                                  <div style={code}>{it.codigo}</div>
-                                </div>
-                                <div style={{ fontSize: '.78rem', fontWeight: 600, color: it.precio_lista > 0 ? '#2e7d32' : '#9ca3af', whiteSpace: 'nowrap' }}>
-                                  {it.precio_lista > 0 ? `+USD ${fmt(it.precio_lista)}` : 'Consultar'}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* PRICE DISPLAY */}
+      <div className="bg-[#003057] text-white rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div>
+          <p className="text-xs text-blue-200 uppercase tracking-wider">Precio configurado</p>
+          <p className="text-3xl font-bold mt-0.5">{fmt(total)}</p>
+          {descuentoPct > 0 && (
+            <p className="text-sm text-green-300 mt-1">Con {descuentoPct}% descuento: <strong>{fmt(precioFinal)}</strong></p>
           )}
         </div>
+        <div className="text-sm text-blue-200 text-right">
+          <p>Precio de lista base</p>
+          <p className="text-white font-semibold text-lg">{fmt(modelo.precio_lista)}</p>
+        </div>
+      </div>
 
-        {/* ── SIDEBAR ─────────────────────────────────────────────── */}
-        <aside style={{ width: 300, borderLeft: '1px solid #dde3f0', display: 'flex', flexDirection: 'column', background: '#fafbfe', flexShrink: 0 }}>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0' }}>
+      {/* SECTION 1 — DE SERIE NO CONFIGURABLE */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <SectionHeader
+          title="Equipamiento de serie no configurable"
+          count={fijos.length}
+          open={sec1Open}
+          onToggle={() => setSec1Open(p => !p)}
+        />
+        {sec1Open && (
+          <ul className="divide-y divide-gray-100">
+            {fijos.map(item => (
+              <li key={item.codigo} className="px-4 py-2.5 flex items-center gap-3">
+                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+                <span className="text-sm text-gray-700 flex-1">{item.descripcion}</span>
+                <span className="text-xs text-gray-400 font-mono">{item.codigo}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-            {/* Config label */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: '.68rem', letterSpacing: '.06em', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 700 }}>Configuración</div>
-              <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#1a1a2e' }}>{modelo.codigo}</div>
-            </div>
-
-            {/* Rows */}
-            <div style={{ background: '#fff', border: '1px solid #dde3f0', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid #f0f2f8', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: '.82rem', color: '#6b7280' }}>Equipo base</span>
-                <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '.88rem' }}>USD {fmt(base)}</span>
-              </div>
-
-              {mods.map((m, i) => (
-                <div key={i} style={{ padding: '9px 14px', borderBottom: '1px solid #f0f2f8', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: '.75rem', color: '#6b7280', flex: 1, lineHeight: 1.3 }}>{m.label}</span>
-                  <span style={{ fontSize: '.8rem', fontWeight: 600, fontFamily: 'monospace', whiteSpace: 'nowrap', color: m.delta < 0 ? '#e5001a' : '#2e7d32' }}>
-                    {m.delta > 0 ? '+' : '−'}USD {fmt(Math.abs(m.delta))}
-                  </span>
+      {/* SECTION 2 — DE SERIE CONFIGURABLE */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <SectionHeader
+          title="Equipamiento de serie configurable"
+          count={sec2ItemCount}
+          open={sec2Open}
+          onToggle={() => setSec2Open(p => !p)}
+        />
+        {sec2Open && (
+          <div className="divide-y divide-gray-100">
+            {sec2Dropdowns.map(group => {
+              const selCode = ddSel[group.label]
+              const selItem = group.items.find(i => i.codigo === selCode) ?? group.defaultItem
+              const delta = selItem && group.defaultItem ? selItem.precio_lista - group.defaultItem.precio_lista : 0
+              return (
+                <div key={group.label} className="px-4 py-3">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{group.label}</label>
+                  <select
+                    value={selCode ?? ''}
+                    onChange={e => setDdSel(p => ({ ...p, [group.label]: e.target.value || null }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#003057]"
+                  >
+                    {group.items.map(it => {
+                      const d = it.precio_lista - (group.defaultItem?.precio_lista ?? 0)
+                      const suffix = it.es_default ? ' (incluido)' : d !== 0 ? ` (${d > 0 ? '+' : ''}${fmt(d)})` : ''
+                      return <option key={it.codigo} value={it.codigo}>{it.descripcion}{suffix}</option>
+                    })}
+                  </select>
+                  {delta !== 0 && <DeltaBadge delta={delta} />}
                 </div>
-              ))}
+              )
+            })}
+            {sec2Checks.map(item => (
+              <label key={item.codigo} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={checkSel[item.codigo] ?? true}
+                  onChange={e => setCheckSel(p => ({ ...p, [item.codigo]: e.target.checked }))}
+                  className="w-4 h-4 accent-[#003057]"
+                />
+                <span className={`text-sm flex-1 ${checkSel[item.codigo] === false ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                  {item.descripcion}
+                </span>
+                {checkSel[item.codigo] === false && (
+                  <span className="text-xs text-green-600 font-semibold">{fmt(-item.precio_lista)}</span>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
-              {mods.length === 0 && (
-                <div style={{ padding: '9px 14px', fontSize: '.75rem', color: '#9ca3af' }}>Configuración estándar</div>
-              )}
+      {/* SECTION 3 — OPCIONALES */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <SectionHeader
+          title="Opcionales adicionales"
+          count={sec3ItemCount}
+          open={sec3Open}
+          onToggle={() => setSec3Open(p => !p)}
+        />
+        {sec3Open && (
+          <div className="divide-y divide-gray-200">
+            {allSec3Sections.map(sec => {
+              const { dropdowns, checks } = sec3BySec.get(sec) ?? { dropdowns: [], checks: [] }
+              const isOpen = openSections[sec] ?? false
+              return (
+                <div key={sec}>
+                  <button
+                    onClick={() => toggleSection(sec)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-left"
+                  >
+                    <span className="text-sm font-semibold text-gray-700">{sec}</span>
+                    <span className="text-gray-400 text-sm">{isOpen ? '▲' : '▼'}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="divide-y divide-gray-100">
+                      {dropdowns.map(([label, its]) => (
+                        <div key={label} className="px-4 py-3">
+                          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</label>
+                          <select
+                            value={ddSel[label] ?? ''}
+                            onChange={e => setDdSel(p => ({ ...p, [label]: e.target.value || null }))}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#003057]"
+                          >
+                            <option value="">No agregar</option>
+                            {its.map(it => (
+                              <option key={it.codigo} value={it.codigo}>
+                                {it.descripcion} — {fmt(it.precio_lista)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                      {checks.map(item => (
+                        <label key={item.codigo} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={checkSel[item.codigo] ?? false}
+                            onChange={e => setCheckSel(p => ({ ...p, [item.codigo]: e.target.checked }))}
+                            className="w-4 h-4 accent-[#003057]"
+                          />
+                          <span className="text-sm text-gray-700 flex-1">{item.descripcion}</span>
+                          <span className={`text-xs font-semibold ${checkSel[item.codigo] ? 'text-red-500' : 'text-gray-400'}`}>
+                            {checkSel[item.codigo] ? '+' : ''}{fmt(item.precio_lista)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* QUOTE FORM */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <span className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Generar Cotización</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Nombre del cliente</label>
+              <input
+                type="text"
+                value={clienteNombre}
+                onChange={e => setClienteNombre(e.target.value)}
+                placeholder="Empresa / Persona"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003057]"
+              />
             </div>
-
-            {/* Descuento */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: '.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5, color: '#6b7280', display: 'block', marginBottom: 5 }}>Descuento %</label>
-              <input type="number" min={0} max={100} value={descuento || ''}
-                onChange={e => setDescuento(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                placeholder="0"
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #dde3f0', borderRadius: 7, fontSize: '.88rem', background: '#fff', boxSizing: 'border-box' }}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Email del cliente</label>
+              <input
+                type="email"
+                value={clienteEmail}
+                onChange={e => setClienteEmail(e.target.value)}
+                placeholder="cliente@empresa.com"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003057]"
               />
             </div>
           </div>
-
-          {/* Total + acciones */}
-          <div style={{ padding: '16px 20px', borderTop: '2px solid #003087', background: '#fff', flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-              <span style={{ fontSize: '.78rem', color: '#6b7280', fontWeight: 600 }}>Total</span>
-              <span style={{ fontSize: '.68rem', color: '#9ca3af' }}>USD FOB</span>
-            </div>
-            <div style={{ fontSize: '1.55rem', fontWeight: 800, color: '#003087', fontFamily: 'monospace', marginBottom: 16 }}>
-              {fmt(total)}
-            </div>
-            {addedCount > 0 && (
-              <div style={{ fontSize: '.72rem', color: '#6b7280', marginBottom: 12 }}>
-                {addedCount} opcional{addedCount > 1 ? 'es' : ''} agregado{addedCount > 1 ? 's' : ''}
-              </div>
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">Descuento (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={50}
+              value={descuentoPct}
+              onChange={e => setDescuentoPct(Number(e.target.value))}
+              className="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003057]"
+            />
+            {descuentoPct > 0 && (
+              <span className="text-sm text-green-600 font-semibold">→ Total: {fmt(precioFinal)}</span>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button onClick={() => setShowModal(true)}
-                style={{ background: '#003087', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: '.88rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                📄 Generar Cotización
-              </button>
-              <button onClick={() => window.print()}
-                style={{ background: 'transparent', color: '#003087', border: '1px solid #003087', borderRadius: 8, padding: '9px', fontSize: '.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                🖨️ Imprimir
-              </button>
-            </div>
-            <p style={{ fontSize: '.68rem', color: '#9ca3af', marginTop: 12, lineHeight: 1.5 }}>
-              Precio FOB. No incluye flete, seguro ni derechos de importación.
-            </p>
           </div>
-        </aside>
+          <button
+            onClick={handleSendQuote}
+            disabled={sending || !clienteNombre || !clienteEmail}
+            className="w-full bg-[#003057] hover:bg-[#00224a] disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-colors"
+          >
+            {sending ? 'Enviando...' : 'Enviar Cotización por Email'}
+          </button>
+          {quoteResult?.success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">
+              ✓ Cotización #{String(quoteResult.numero).padStart(5, '0')} enviada correctamente.
+            </div>
+          )}
+          {quoteResult?.error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+              Error: {quoteResult.error}
+            </div>
+          )}
+        </div>
       </div>
-
-      {showModal && (
-        <QuoteModal
-          modelo={modelo} totalConfigurado={totalConfig} descuento={descuento} precioFinal={total}
-          itemsSnapshot={itemsSnapshot} userId={userId} empresa={empresa} onClose={() => setShowModal(false)}
-        />
-      )}
     </div>
   )
 }

@@ -4,6 +4,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
+const LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL ?? ''
+const VOLVO_LOGO = 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Volvo_Car_logo.svg/120px-Volvo_Car_logo.svg.png'
+
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
@@ -44,14 +47,30 @@ export default function Header() {
     <header style={{
       background: '#003087', color: '#fff',
       display: 'flex', alignItems: 'center',
-      padding: '0 28px', height: 62, gap: 18,
+      padding: '0 28px', height: 64, gap: 18,
       boxShadow: '0 2px 12px rgba(0,0,0,.25)',
       position: 'sticky', top: 0, zIndex: 100
     }}>
-      <div style={{ fontSize: '1.18rem', fontWeight: 700, borderRight: '2px solid rgba(255,255,255,.25)', paddingRight: 18, lineHeight: 1.2 }}>
-        ESCANDINAVIA DEL PLATA
-        <span style={{ fontSize: '.72rem', fontWeight: 400, display: 'block', opacity: .8 }}>Volvo Construction Equipment</span>
+      {/* Logo / brand */}
+      <div style={{ borderRight: '2px solid rgba(255,255,255,.25)', paddingRight: 18, lineHeight: 1.2, flexShrink: 0 }}>
+        {LOGO_URL ? (
+          <img src={LOGO_URL} alt="Escandinavia del Plata" style={{ height: 38, maxWidth: 180, objectFit: 'contain' }} />
+        ) : (
+          <div>
+            <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>ESCANDINAVIA DEL PLATA</span>
+            <span style={{ fontSize: '.7rem', fontWeight: 400, display: 'block', opacity: .8 }}>Volvo Construction Equipment</span>
+          </div>
+        )}
       </div>
+
+      {/* Volvo logo */}
+      <img
+        src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Volvo_logo.png/240px-Volvo_logo.png"
+        alt="Volvo"
+        style={{ height: 28, opacity: .9, filter: 'brightness(0) invert(1)' }}
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+      />
+
       <nav style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
         {navBtn('/', 'Inicio')}
         {navBtn('/lista-precios', 'Lista de Precios')}
