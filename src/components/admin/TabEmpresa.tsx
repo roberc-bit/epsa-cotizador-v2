@@ -94,12 +94,12 @@ export default function TabEmpresa({ empresa }: { empresa: any }) {
             }
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button onClick={() => logoRef.current?.click()} disabled={logoUploading}
+            <button type="button" onClick={() => logoRef.current?.click()} disabled={logoUploading}
               style={{ background: '#003087', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '.85rem' }}>
               {logoUploading ? 'Subiendo…' : '📷 Subir logo'}
             </button>
             {logoUrl && (
-              <button onClick={removeLogo}
+              <button type="button" onClick={removeLogo}
                 style={{ background: 'transparent', color: '#dc2626', border: '1px solid #dc2626', padding: '7px 18px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '.85rem' }}>
                 🗑️ Quitar logo
               </button>
@@ -128,7 +128,7 @@ export default function TabEmpresa({ empresa }: { empresa: any }) {
           <div style={{ gridColumn: '1/-1' }}>{F('Texto al pie de cotización', 'pie_cotizacion')}</div>
         </div>
         <div style={{ marginTop: 20, display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button onClick={save} disabled={saving}
+          <button type="button" onClick={save} disabled={saving}
             style={{ background: '#003087', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
             {saving ? 'Guardando…' : '💾 Guardar cambios'}
           </button>

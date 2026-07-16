@@ -83,7 +83,7 @@ export default function TabPrecios({ modelos, familias }: { modelos: any[]; fami
         {modelFile && (
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '.85rem', color: '#6b7280' }}>📄 {modelFile.name}</span>
-            <button onClick={uploadModel} disabled={uploading || !familiaId}
+            <button type="button" onClick={uploadModel} disabled={uploading || !familiaId}
               style={{ background: '#003087', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', opacity: !familiaId ? .5 : 1 }}>
               {uploading ? 'Procesando…' : '⬆️ Procesar modelo'}
             </button>

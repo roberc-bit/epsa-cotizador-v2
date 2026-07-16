@@ -56,7 +56,7 @@ export default function TabUsuarios({ perfiles, currentUserId }: { perfiles: any
             </select>
           </div>
         </div>
-        <button onClick={createUser} disabled={creating}
+        <button type="button" onClick={createUser} disabled={creating}
           style={{ marginTop: 16, background: '#003087', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
           {creating ? 'Creando…' : '✚ Crear usuario'}
         </button>
@@ -80,7 +80,7 @@ export default function TabUsuarios({ perfiles, currentUserId }: { perfiles: any
                 <td style={{ padding: '11px 14px', borderBottom: '1px solid #dde3f0' }}><StatusBadge activo={u.activo} /></td>
                 <td style={{ padding: '11px 14px', borderBottom: '1px solid #dde3f0' }}>
                   {u.id !== currentUserId && (
-                    <button onClick={() => toggleActivo(u.id, u.activo)}
+                    <button type="button" onClick={() => toggleActivo(u.id, u.activo)}
                       style={{ background: 'none', border: '1px solid #dde3f0', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '.78rem', color: '#6b7280' }}>
                       {u.activo ? '⛔ Desactivar' : '✅ Activar'}
                     </button>

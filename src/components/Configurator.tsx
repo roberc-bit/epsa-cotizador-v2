@@ -291,7 +291,7 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
                   const isOpen = openSections[sec] ?? false
                   return (
                     <div key={sec} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <button onClick={() => setOpenSections(p => ({ ...p, [sec]: !p[sec] }))}
+                      <button type="button" onClick={() => setOpenSections(p => ({ ...p, [sec]: !p[sec] }))}
                         style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 20px', background: '#f9fafb', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                         <span style={{ fontSize: '.85rem', fontWeight: 600, color: '#374151' }}>{sec}</span>
                         <span style={{ color: '#9ca3af', fontSize: '.72rem' }}>{isOpen ? '▲' : '▼'}</span>
@@ -410,11 +410,11 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
             </div>
 
             {/* BUTTONS */}
-            <button onClick={() => setShowQuote(true)}
+            <button type="button" onClick={() => setShowQuote(true)}
               style={{ width: '100%', background: '#f59e0b', color: '#1a1a2e', border: 'none', padding: '13px', borderRadius: 8, fontWeight: 700, fontSize: '.95rem', cursor: 'pointer', marginBottom: 8 }}>
               Generar cotización →
             </button>
-            <button onClick={reset}
+            <button type="button" onClick={reset}
               style={{ width: '100%', background: 'transparent', color: '#6b7280', border: '1px solid #e5e7eb', padding: '10px', borderRadius: 8, fontSize: '.85rem', cursor: 'pointer' }}>
               ↺ Restablecer
             </button>
@@ -428,14 +428,14 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Generar Cotización</h3>
-              <button onClick={() => { setShowQuote(false); setQuoteResult(null) }} style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: '#9ca3af' }}>×</button>
+              <button type="button" onClick={() => { setShowQuote(false); setQuoteResult(null) }} style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: '#9ca3af' }}>×</button>
             </div>
             {quoteResult?.success ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <div style={{ fontSize: '3rem', marginBottom: 12 }}>✅</div>
                 <p style={{ fontWeight: 700, fontSize: '1rem' }}>Cotización #{String(quoteResult.numero).padStart(5, '0')} enviada</p>
                 <p style={{ color: '#6b7280', fontSize: '.88rem' }}>El cliente recibirá el email con el detalle.</p>
-                <button onClick={() => { setShowQuote(false); setQuoteResult(null) }} style={{ marginTop: 16, background: '#003087', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>Cerrar</button>
+                <button type="button" onClick={() => { setShowQuote(false); setQuoteResult(null) }} style={{ marginTop: 16, background: '#003087', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>Cerrar</button>
               </div>
             ) : (
               <>
@@ -464,7 +464,7 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
                     {quoteResult.error}
                   </div>
                 )}
-                <button onClick={handleSendQuote} disabled={sending || !clienteNombre || !clienteEmail}
+                <button type="button" onClick={handleSendQuote} disabled={sending || !clienteNombre || !clienteEmail}
                   style={{ width: '100%', background: sending || !clienteNombre || !clienteEmail ? '#d1d5db' : '#f59e0b', color: '#1a1a2e', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: '.95rem', cursor: sending || !clienteNombre || !clienteEmail ? 'not-allowed' : 'pointer' }}>
                   {sending ? 'Enviando…' : 'Enviar cotización por email'}
                 </button>

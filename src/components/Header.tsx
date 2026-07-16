@@ -59,7 +59,7 @@ export default function Header() {
         {navBtn('/', 'Inicio')}
         {navBtn('/lista-precios', 'Lista de Precios')}
         {isAdmin && navBtn('/admin', 'Administración')}
-        <button onClick={handleLogout} style={{
+        <button type="button" onClick={handleLogout} style={{
           background: 'transparent', border: '1px solid rgba(255,255,255,.3)',
           color: '#fff', padding: '6px 14px', borderRadius: 20,
           cursor: 'pointer', fontSize: '.82rem'

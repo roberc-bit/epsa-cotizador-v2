@@ -53,7 +53,7 @@ export default function TabActividad({ actividad }: { actividad: any[] }) {
       <div style={{ background: '#fff', border: '1px solid #dde3f0', borderRadius: 12, padding: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #dde3f0' }}>
           <h3 style={{ fontWeight: 700, color: '#003087' }}>Registro de Actividad</h3>
-          <button onClick={exportExcel} style={{ background: 'transparent', color: '#003087', border: '2px solid #003087', padding: '6px 14px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '.78rem' }}>
+          <button type="button" onClick={exportExcel} style={{ background: 'transparent', color: '#003087', border: '2px solid #003087', padding: '6px 14px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '.78rem' }}>
             ⬇️ Exportar CSV
           </button>
         </div>
