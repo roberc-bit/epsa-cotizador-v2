@@ -1,8 +1,10 @@
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import Header from '@/components/Header'
-import Configurator from '@/components/Configurator'
+import dynamic from 'next/dynamic'
 import type { Item } from '@/lib/types'
+
+const Configurator = dynamic(() => import('@/components/Configurator'), { ssr: false })
 
 export default async function ModelPage({ params }: { params: Promise<{ family: string; model: string }> }) {
   const { family, model: modelCode } = await params

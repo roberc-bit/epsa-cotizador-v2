@@ -2,7 +2,9 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { redirect } from 'next/navigation'
 import Header from '@/components/Header'
-import AdminPanel from '@/components/admin/AdminPanel'
+import dynamic from 'next/dynamic'
+
+const AdminPanel = dynamic(() => import('@/components/admin/AdminPanel'), { ssr: false })
 
 export default async function AdminPage() {
   const supabase = await createServerSupabase()
