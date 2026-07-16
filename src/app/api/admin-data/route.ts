@@ -1,14 +1,15 @@
-import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
+import { createServerSupabase } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
+  // Para admin verificamos sesión (getSession lee cookie, sin red para tokens válidos)
   const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const admin = createAdminSupabase()
-  const { data: perfil } = await admin.from('perfiles').select('rol').eq('id', user.id).single()
+  const { data: perfil } = await admin.from('perfiles').select('rol').eq('id', session.user.id).single()
   if (perfil?.rol !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const [
@@ -30,6 +31,6 @@ export async function GET() {
   return NextResponse.json({
     empresa, perfiles: perfiles ?? [], modelos: modelos ?? [],
     familias: familias ?? [], actividad: actividad ?? [],
-    cotizaciones: cotizaciones ?? [], currentUserId: user.id
+    cotizaciones: cotizaciones ?? [], currentUserId: session.user.id
   })
 }

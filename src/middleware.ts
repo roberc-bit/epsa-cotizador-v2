@@ -1,38 +1,25 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import type { CookieMethodsServer } from '@supabase/ssr'
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
-
-  const cookieMethods: CookieMethodsServer = {
-    getAll() { return request.cookies.getAll() },
-    setAll(cookiesToSet) {
-      cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-      supabaseResponse = NextResponse.next({ request })
-      cookiesToSet.forEach(({ name, value, options }) =>
-        supabaseResponse.cookies.set(name, value, options))
-    },
-  }
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: cookieMethods }
-  )
-
-  // getSession() lee cookie local — sin llamada de red (~0ms vs 300ms de getUser)
-  const { data: { session } } = await supabase.auth.getSession()
+export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  if (!session && pathname !== '/login') {
+  // Verificar sesión leyendo la cookie directamente — CERO llamadas de red, nunca cuelga
+  const cookies = request.cookies.getAll()
+  const hasSession = cookies.some(c =>
+    c.name.includes('auth-token') ||
+    c.name.includes('sb-access-token') ||
+    (c.name.startsWith('sb-') && c.name.includes('auth'))
+  )
+
+  if (!hasSession && pathname !== '/login') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
-  if (session && pathname === '/login') {
+
+  if (hasSession && pathname === '/login') {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  return supabaseResponse
+  return NextResponse.next()
 }
 
 export const config = {
