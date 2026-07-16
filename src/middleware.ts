@@ -1,5 +1,6 @@
-import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { CookieMethodsServer } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -20,16 +21,14 @@ export async function middleware(request: NextRequest) {
     { cookies: cookieMethods }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession() lee cookie local — sin llamada de red (~0ms vs 300ms de getUser)
+  const { data: { session } } = await supabase.auth.getSession()
   const pathname = request.nextUrl.pathname
 
-  // Rutas protegidas (todo excepto login)
-  if (!user && pathname !== '/login') {
+  if (!session && pathname !== '/login') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
-
-  // Si ya está logueado y va al login, redirigir a home
-  if (user && pathname === '/login') {
+  if (session && pathname === '/login') {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
@@ -37,5 +36,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
