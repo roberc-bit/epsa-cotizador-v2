@@ -27,7 +27,7 @@ export default function AdminPanel({ empresa, perfiles, modelos, familias, activ
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #dde3f0' }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setActive(t.id)} style={{
+          <button type="button" key={t.id} onClick={() => setActive(t.id)} style={{
             padding: '10px 20px', border: 'none', cursor: 'pointer',
             fontSize: '.88rem', fontWeight: active === t.id ? 700 : 500,
             color: active === t.id ? '#003087' : '#6b7280',
