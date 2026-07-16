@@ -2,7 +2,8 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import Header from '@/components/Header'
 import { fmtUSD } from '@/lib/utils'
-import PrintButton from '@/components/PrintButton'
+import dynamic from 'next/dynamic'
+const PrintButton = dynamic(() => import('@/components/PrintButton'), { ssr: false })
 
 export default async function ListaPreciosPage() {
   const supabase = await createServerSupabase()

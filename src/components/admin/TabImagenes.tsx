@@ -53,6 +53,7 @@ export default function TabImagenes({ modelos, familias }: { modelos: any[]; fam
             ? <img src={url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <span style={{ fontSize: '2rem' }}>🏗️</span>}
           <button
+            type="button"
             onClick={() => ref.current?.click()}
             disabled={uploading === item.id}
             style={{
@@ -78,6 +79,7 @@ export default function TabImagenes({ modelos, familias }: { modelos: any[]; fam
             style={{ width: '100%', border: '1px solid #dde3f0', borderRadius: 6, padding: '5px 8px', fontSize: '.8rem', boxSizing: 'border-box' as const }}
           />
           <button
+            type="button"
             onClick={() => saveName(table, item.id, nameField === 'codigo' ? 'nombre' : 'nombre')}
             disabled={savingName === item.id || !names[nameKey]}
             style={{

@@ -3,6 +3,7 @@
 export default function PrintButton() {
   return (
     <button
+      type="button"
       onClick={() => window.print()}
       style={{
         background: '#003087', color: '#fff', border: 'none',
