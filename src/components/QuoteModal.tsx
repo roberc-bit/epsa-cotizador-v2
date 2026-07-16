@@ -61,7 +61,7 @@ export default function QuoteModal({ modelo, totalConfigurado, descuento, precio
     <div onClick={e => e.target === e.currentTarget && onClose()}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: '#fff', borderRadius: 14, padding: '32px', width: '100%', maxWidth: 460, position: 'relative', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: '#6b7280' }}>✕</button>
+        <button type="button" onClick={onClose} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: '#6b7280' }}>✕</button>
 
         {!sent ? (
           <>
@@ -101,8 +101,8 @@ export default function QuoteModal({ modelo, totalConfigurado, descuento, precio
             </Field>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button onClick={onClose} style={{ ...btnSecondary }}>Cancelar</button>
-              <button onClick={handleSend} disabled={sending} style={{ ...btnPrimary, flex: 1, opacity: sending ? .7 : 1 }}>
+              <button type="button" onClick={onClose} style={{ ...btnSecondary }}>Cancelar</button>
+              <button type="button" onClick={handleSend} disabled={sending} style={{ ...btnPrimary, flex: 1, opacity: sending ? .7 : 1 }}>
                 {sending ? '⏳ Enviando…' : '✉️ Enviar cotización'}
               </button>
             </div>
@@ -116,7 +116,7 @@ export default function QuoteModal({ modelo, totalConfigurado, descuento, precio
               Se envió la cotización de <strong>{modelo.nombre}</strong> por <strong>{fmt(precioFinal)}</strong> a <strong>{emailCliente}</strong>
               {emailVendedor ? ` con copia a ${emailVendedor}` : ''}.
             </p>
-            <button onClick={onClose} style={{ ...btnSecondary, marginTop: 18, width: '100%' }}>Cerrar</button>
+            <button type="button" onClick={onClose} style={{ ...btnSecondary, marginTop: 18, width: '100%' }}>Cerrar</button>
           </div>
         )}
       </div>
