@@ -200,6 +200,7 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
           {/* SECTION 1 — EQUIPAMIENTO DE SERIE */}
           <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb', marginBottom: 12, overflow: 'hidden' }}>
             <button
+              type="button"
               onClick={() => setSec1Open(p => !p)}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
@@ -230,6 +231,7 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
           {/* SECTION 2 — CONFIGURACIÓN INCLUIDA */}
           <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb', marginBottom: 12, overflow: 'hidden' }}>
             <button
+              type="button"
               onClick={() => setSec2Open(p => !p)}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
@@ -275,6 +277,7 @@ export default function Configurator({ modelo, items, familia, empresa, userId }
           {/* SECTION 3 — OPCIONALES */}
           <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
             <button
+              type="button"
               onClick={() => setSec3Open(p => !p)}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
